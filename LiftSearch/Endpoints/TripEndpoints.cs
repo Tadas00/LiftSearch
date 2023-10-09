@@ -84,15 +84,15 @@ public static class TripEndpoints
                 trip.Id == tripId && trip.driver.Id == driverId, cancellationToken: cancellationToken);
             if (trip == null) return Results.NotFound("Such trip not found");
 
-            trip.seatsCount = updateTripDto.seatsCount;
+            trip.seatsCount = updateTripDto.seatsCount ?? trip.seatsCount;
             trip.lastEditTime = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc);
-            trip.startTime = updateTripDto.startTime;
-            trip.endTime = updateTripDto.endTime;
-            trip.price = updateTripDto.price;
-            trip.description = updateTripDto.description;
-            trip.startCity = updateTripDto.startCity;
-            trip.endCity = updateTripDto.endCity;
-            trip.tripStatus = updateTripDto.tripStatus;
+            trip.startTime = updateTripDto.startTime ?? trip.startTime;
+            trip.endTime = updateTripDto.endTime ?? trip.endTime;
+            trip.price = updateTripDto.price ?? trip.price;
+            trip.description = updateTripDto.description ?? trip.description;
+            trip.startCity = updateTripDto.startCity ?? trip.startCity;
+            trip.endCity = updateTripDto.endCity ?? trip.endCity;
+            trip.tripStatus = updateTripDto.tripStatus ?? trip.tripStatus;
 
             dbContext.Update(trip);
             await dbContext.SaveChangesAsync(cancellationToken);

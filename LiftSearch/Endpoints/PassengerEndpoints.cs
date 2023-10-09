@@ -102,12 +102,12 @@ public static class PassengerEndpoints
                 passenger.Id == passengerId && passenger.trip.Id == tripId && passenger.trip.driver.Id == driverId, cancellationToken: cancellationToken);
             if (passenger == null) return Results.NotFound("Such passenger not found");
 
-            passenger.registrationStatus = updatePassengerDto.registrationStatus;
-            passenger.startCity = updatePassengerDto.startCity;
-            passenger.endCity = updatePassengerDto.endCity;
-            passenger.startAdress = updatePassengerDto.startAdress;
-            passenger.endAdress = updatePassengerDto.endAdress;
-            passenger.comment = updatePassengerDto.comment;
+            passenger.registrationStatus = updatePassengerDto.registrationStatus ?? passenger.registrationStatus;
+            passenger.startCity = updatePassengerDto.startCity ?? passenger.startCity;
+            passenger.endCity = updatePassengerDto.endCity ?? passenger.endCity;
+            passenger.startAdress = updatePassengerDto.startAdress ?? passenger.startAdress;
+            passenger.endAdress = updatePassengerDto.endAdress ?? passenger.endAdress;
+            passenger.comment = updatePassengerDto.comment ?? passenger.comment;
 
             dbContext.Update(passenger);
             await dbContext.SaveChangesAsync(cancellationToken);

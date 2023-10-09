@@ -51,7 +51,6 @@ public static class DriverEndpoints
             
             var driverCheck = await dbContext.Drivers.FirstOrDefaultAsync(d => d.user.Id == createDriverDto.userId, cancellationToken: cancellationToken);
             if (driverCheck != null) return Results.UnprocessableEntity("This user is already a driver");
-            //TODO status code should be?
             
             var driver = new Driver()
             {
@@ -79,7 +78,7 @@ public static class DriverEndpoints
                 if (driver == null)
                     return Results.NotFound("Such driver not found");
 
-                driver.driverBio = updateDriverDto.driverBio;
+                driver.driverBio = updateDriverDto.driverBio ?? driver.driverBio;
 
                 dbContext.Update(driver);
                 await dbContext.SaveChangesAsync(cancellationToken);
@@ -93,6 +92,10 @@ public static class DriverEndpoints
             var driver = await dbContext.Drivers.Include(driver => driver.user).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
                 return Results.NotFound("Such driver not found");
+            
+            var countActiveTrips = dbContext.Trips.Include(t => t.driver).Count(t => t.driver.Id == driverId && t.tripStatus == TripStatus.Active);
+            if (countActiveTrips != 0)
+                return Results.UnprocessableEntity("Driver can't be removed because he has active trips");
             
             driver.user.driverStatus = DriverStatus.No;
             dbContext.Update(driver.user);
