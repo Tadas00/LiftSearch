@@ -2,6 +2,7 @@
 using LiftSearch.Data.Entities;
 using LiftSearch.Data.Entities.Enums;
 using LiftSearch.Dtos;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Internal;
 using O9d.AspNet.FluentValidation;
@@ -17,8 +18,10 @@ public static class DriverEndpoints
         driversGroup.MapGet("drivers",
             async (LsDbContext dbContext, CancellationToken cancellationToken) =>
             {
-                return Results.Ok((await dbContext.Drivers.Include(driver => driver.user).ToListAsync(cancellationToken)).Select(driver =>
-                    MakeDriverDto(driver, dbContext)));
+                return Results.Ok(
+                    (await dbContext.Drivers.Include(driver => driver.user).ToListAsync(cancellationToken)).Select(
+                        driver =>
+                            MakeDriverDto(driver, dbContext)));
             });
 
         // GET ONE
@@ -27,7 +30,7 @@ public static class DriverEndpoints
             {
                 var driver = await dbContext.Drivers.Include(driver => driver.user).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
-                    return Results.NotFound("Such driver not found");
+                    return Results.NotFound(new { error = "Such driver not found" });
 
                 return Results.Ok(MakeDriverDto(driver, dbContext));
             });

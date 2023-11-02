@@ -33,7 +33,7 @@ public class UpdateTripDtoValidator : AbstractValidator<UpdateTripDto>
         RuleFor(dto => dto.endTime).InclusiveBetween(0,1440);
         RuleFor(dto => dto.price).NotEmpty().GreaterThanOrEqualTo(0);
         RuleFor(dto => dto.description).MaximumLength(200);
-        RuleFor(dto => dto.startCity).Length(min: 4, max: 20);
+        RuleFor(dto => dto.startCity).NotEmpty().Length(min: 4, max: 20);
         RuleFor(dto => dto.endCity).NotEmpty().Length(min: 4, max: 20);
         RuleFor(dto => dto.tripStatus).IsInEnum();
     }
