@@ -5,7 +5,7 @@ namespace LiftSearch.Data.Entities;
 
 public class Trip
 {
-    public string Id { get; set; }
+    public int Id { get; set; }
     public required DateTime tripDate { get; set; }
     public required DateTime lastEditTime { get; set; }
     public required int seatsCount { get; set; }
@@ -18,8 +18,8 @@ public class Trip
     public required TripStatus tripStatus { get; set; }
     
     [Required]
-    public required string driverId { get; set; }
-    public Driver driver { get; set; }
+    public required int DriverId { get; set; }
+    public Driver Driver { get; set; }
 }
 
 

@@ -5,7 +5,7 @@ namespace LiftSearch.Data.Entities;
 
 public class Passenger
 {
-    public string Id { get; set; }
+    public int Id { get; set; }
     
     public bool registrationStatus { get; set; }
     public required string startCity { get; set; }
@@ -17,7 +17,7 @@ public class Passenger
     public required Trip trip { get; set; }
     
     [Required]
-    public required string TravelerId { get; set; }
+    public required int TravelerId { get; set; }
     
     public Traveler Traveler { get; set; }
     

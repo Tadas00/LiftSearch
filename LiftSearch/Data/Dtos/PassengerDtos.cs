@@ -4,7 +4,7 @@ using LiftSearch.Data.Entities.Enums;
 
 namespace LiftSearch.Dtos;
 
-public record PassengerDto(string Id, bool registrationStatus, string startCity, string endCity, string? startAdress, string? endAdress, string? comment, string travelerId, string tripId);
+public record PassengerDto(int Id, bool registrationStatus, string startCity, string endCity, string? startAdress, string? endAdress, string? comment, int travelerId, int tripId);
 public record CreatePassengerDto(string startCity, string endCity, string? startAdress, string? endAdress, string? comment);
 public record UpdatePassengerDto(bool? registrationStatus, string startCity, string endCity, string? startAdress, string? endAdress, string? comment);
 

@@ -4,7 +4,7 @@ namespace LiftSearch.Data.Entities;
 
 public class Driver
 {
-    public string Id { get; set; }
+    public int Id { get; set; }
     public required int cancelledCountDriver { get; set; }
     public required DateTime registeredDriverDate { get; set; }
     public DateTime? lastTripDate { get; set; }

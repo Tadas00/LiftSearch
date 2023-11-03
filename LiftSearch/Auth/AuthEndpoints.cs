@@ -79,14 +79,13 @@ public static class AuthEndpoints
             };
 
             var createUserResults = await userManager.CreateAsync(newUser, registerUserDto.Password);
-            if (!createUserResults.Succeeded) return Results.UnprocessableEntity();
+            if (!createUserResults.Succeeded) return Results.UnprocessableEntity(createUserResults.ToString());
 
             await userManager.AddToRoleAsync(newUser, UserRoles.Traveler);
             
             //create
             var traveler = new Traveler()
             {
-                Id = newUser.Id,
                 cancelledCountTraveler = 0,
                 registrationDate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc),
                 lastTripDate = null,
@@ -94,6 +93,7 @@ public static class AuthEndpoints
                 UserId = newUser.Id
             };
 
+            //TODO
             dbContext.Travelers.Add(traveler);
             await dbContext.SaveChangesAsync(cancellationToken);
             //create

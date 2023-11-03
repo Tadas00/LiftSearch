@@ -4,7 +4,7 @@ namespace LiftSearch.Data.Entities;
 
 public class Traveler
 {
-    public string Id { get; set; }
+    public int Id { get; set; }
     
     public required DateTime registrationDate { get; set; }
     public required int cancelledCountTraveler { get; set; }

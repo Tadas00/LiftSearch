@@ -4,7 +4,7 @@ using LiftSearch.Data.Entities;
 namespace LiftSearch.Dtos;
 
 
-public record TravelerDto(string Id, int tripsCountTraveler, int cancelledCountTraveler, DateTime registeredDate, DateTime? lastTripDate, string? driverBio, string name, string email);
+public record TravelerDto(int Id, int tripsCountTraveler, int cancelledCountTraveler, DateTime registeredDate, DateTime? lastTripDate, string? driverBio, string name, string email);
 public record CreateTravelerDto(string userId, string? travelerBio);
 public record UpdateTravelerDto(string? travelerBio);
 

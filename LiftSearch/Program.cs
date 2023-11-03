@@ -35,7 +35,6 @@ builder.Services.AddValidatorsFromAssemblyContaining<DriverDto>();
 builder.Services.AddValidatorsFromAssemblyContaining<TripDto>();
 builder.Services.AddValidatorsFromAssemblyContaining<PassengerDto>();
 
-var app = builder.Build();
 
 builder.Services.AddIdentity<User, IdentityRole>()
     .AddEntityFrameworkStores<LsDbContext>()
@@ -53,11 +52,14 @@ builder.Services.AddAuthentication(options =>
     options.TokenValidationParameters.IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Secret"]));
 });
 
+
 builder.Services.AddAuthorization();
+var app = builder.Build();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
+/*
 app.UseExceptionHandler(c => c.Run(async context =>
 {
     var exception = context.Features
@@ -71,6 +73,7 @@ app.UseExceptionHandler(c => c.Run(async context =>
         await context.Response.WriteAsJsonAsync(response);
     }
 }));
+*/
 
 app.AddAutApi();
 
@@ -86,8 +89,10 @@ TripEndpoints.AddTripApi(tripsGroup);
 var passengersGroup = app.MapGroup("/api/drivers/{driverId}/trips/{tripId}").WithValidationFilter();
 PassengerEndpoints.AddPassengerApi(passengersGroup);
 
+
 using var scope = app.Services.CreateScope();
 var dbSeeder = scope.ServiceProvider.GetRequiredService<AuthDbSeeder>();
 await dbSeeder.SeedAsync();
+
 
 app.Run();

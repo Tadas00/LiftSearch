@@ -26,7 +26,7 @@ public class TravelerEndpoint
 
         // GET ONE
         travelersGroup.MapGet("travelers/{travelerId}",
-            async (string travelerId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (int travelerId, LsDbContext dbContext, CancellationToken cancellationToken) =>
             {
                 var traveler = await dbContext.Travelers.Include(traveler => traveler.User).FirstOrDefaultAsync(traveler => traveler.Id == travelerId, cancellationToken: cancellationToken);
                 if (traveler == null)
@@ -41,12 +41,11 @@ public class TravelerEndpoint
             var user = await dbContext.Users.FirstOrDefaultAsync(user => user.Id == createTravelerDto.userId, cancellationToken: cancellationToken);
             if (user == null) return Results.NotFound("Such user not found");
             
-            var travelerCheck = await dbContext.Travelers.FirstOrDefaultAsync(t => t.Id == createTravelerDto.userId, cancellationToken: cancellationToken);
+            var travelerCheck = await dbContext.Travelers.FirstOrDefaultAsync(t => t.UserId == createTravelerDto.userId, cancellationToken: cancellationToken);
             if (travelerCheck != null) return Results.UnprocessableEntity("This user is already a traveler");
             
             var traveler = new Traveler()
             {
-                Id = user.Id,
                 cancelledCountTraveler = 0,
                 registrationDate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc),
                 lastTripDate = null,
@@ -64,18 +63,19 @@ public class TravelerEndpoint
         
         // UPDATE
         travelersGroup.MapPut("travelers/{travelerId}",
-            async (string travelerId, [Validate] UpdateTravelerDto updateTravelerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+            async (int travelerId, [Validate] UpdateTravelerDto updateTravelerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
-                var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
-                if (travelerId != userId)
-                {
-                    return Results.Forbid();
-                }
                 
                 var traveler = await dbContext.Travelers.Include(traveler => traveler.User).FirstOrDefaultAsync(traveler => traveler.Id == travelerId, cancellationToken: cancellationToken);
                 if (traveler == null)
                     return Results.NotFound("Such traveler not found");
 
+                var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+                if (traveler.UserId != userId)
+                {
+                    return Results.Forbid();
+                }
+                
                 traveler.travelerBio = updateTravelerDto.travelerBio ?? traveler.travelerBio;
 
                 dbContext.Update(traveler);
@@ -85,23 +85,24 @@ public class TravelerEndpoint
             });
 
         // DELETE
-        travelersGroup.MapDelete("travelers/{travelerId}", async (string travelerId, LsDbContext dbContext, CancellationToken cancellationToken, UserManager<User> userManager, HttpContext httpContext) =>
+        travelersGroup.MapDelete("travelers/{travelerId}", async (int travelerId, LsDbContext dbContext, CancellationToken cancellationToken, UserManager<User> userManager, HttpContext httpContext) =>
         {
-            var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
-            if (travelerId != userId)
-            {
-                return Results.Forbid();
-            }
             
             var traveler = await dbContext.Travelers.Include(traveler => traveler.User).FirstOrDefaultAsync(traveler => traveler.Id == travelerId, cancellationToken: cancellationToken);
             if (traveler == null)
                 return Results.NotFound("Such traveler not found");
             
+            var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            if (traveler.UserId != userId)
+            {
+                return Results.Forbid();
+            }
+            
             var countActiveTrips = dbContext.Passengers.Include(t => t.trip).Include(t => t.Traveler).Count(t => t.Traveler.Id == travelerId && t.trip.tripStatus == TripStatus.Active);
             if (countActiveTrips != 0)
                 return Results.UnprocessableEntity("Traveler can't be removed because he has active trips");
             
-            var countActiveDrives = dbContext.Trips.Include(t => t.driver).Count(t => t.driver.Id == travelerId && t.tripStatus == TripStatus.Active);
+            var countActiveDrives = dbContext.Trips.Include(t => t.Driver).Count(t => t.Driver.Id == travelerId && t.tripStatus == TripStatus.Active);
             if (countActiveDrives != 0)
                 return Results.UnprocessableEntity("Driver can't be removed because he has active trips");
 
