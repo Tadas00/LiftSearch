@@ -1,10 +1,11 @@
-﻿using LiftSearch.Data.Entities.Enums;
+﻿using System.ComponentModel.DataAnnotations;
+using LiftSearch.Data.Entities.Enums;
 
 namespace LiftSearch.Data.Entities;
 
 public class Passenger
 {
-    public int Id { get; set; }
+    public string Id { get; set; }
     
     public bool registrationStatus { get; set; }
     public required string startCity { get; set; }
@@ -14,5 +15,12 @@ public class Passenger
     public string? comment { get; set; }
     
     public required Trip trip { get; set; }
-    public required User traveler { get; set; }
+    
+    [Required]
+    public required string TravelerId { get; set; }
+    
+    public Traveler Traveler { get; set; }
+    
+    
+   // public required User traveler { get; set; }
 }

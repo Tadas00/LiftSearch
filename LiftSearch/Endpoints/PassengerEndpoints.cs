@@ -1,8 +1,11 @@
-﻿using LiftSearch.Data;
+﻿using System.Security.Claims;
+using LiftSearch.Auth;
+using LiftSearch.Data;
 using LiftSearch.Data.Entities;
 using LiftSearch.Data.Entities.Enums;
 using LiftSearch.Dtos;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.JsonWebTokens;
 using O9d.AspNet.FluentValidation;
 
 namespace LiftSearch.Endpoints;
@@ -13,7 +16,7 @@ public static class PassengerEndpoints
     {
         // GET ALL
         passengerGroup.MapGet("passengers",
-            async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (string driverId, string tripId, LsDbContext dbContext, CancellationToken cancellationToken) =>
             {
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
@@ -26,13 +29,13 @@ public static class PassengerEndpoints
                 return Results.Ok(
                     (await dbContext.Passengers
                         .Where(passenger => passenger.trip.Id == tripId && passenger.trip.driver.Id == driverId)
-                        .Include(passenger => passenger.trip).Include(passenger => passenger.traveler).ToListAsync(cancellationToken))
+                        .Include(passenger => passenger.trip).Include(passenger => passenger.Traveler).ToListAsync(cancellationToken))
                         .Select(passenger => MakePassengerDto(passenger)));
             });
 
         // GET ONE
         passengerGroup.MapGet("passengers/{passengerId}",
-            async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (string driverId, string tripId, string passengerId, LsDbContext dbContext, CancellationToken cancellationToken) =>
             {
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
@@ -43,7 +46,7 @@ public static class PassengerEndpoints
                 if (trip == null) return Results.NotFound("Such trip not found");
                 
                 var passenger = await dbContext.Passengers.Include(passenger => passenger.trip)
-                    .Include(passenger => passenger.traveler).FirstOrDefaultAsync(passenger =>
+                    .Include(passenger => passenger.Traveler).FirstOrDefaultAsync(passenger =>
                     passenger.Id == passengerId && passenger.trip.Id == tripId && passenger.trip.driver.Id == driverId, cancellationToken: cancellationToken);
                 if (passenger == null) return Results.NotFound("Such passenger not found");
 
@@ -52,20 +55,23 @@ public static class PassengerEndpoints
         
         // CREATE
         passengerGroup.MapPost("passengers",
-            async (int driverId, int tripId, [Validate] CreatePassengerDto createPassengerDto, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (string driverId, string tripId, [Validate] CreatePassengerDto createPassengerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
-                var driver = await dbContext.Drivers.Include(driver => driver.user).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
+                var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+                
+                var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null) return Results.NotFound("Such driver not found");
             
                 var trip = await dbContext.Trips.FirstOrDefaultAsync(trip => trip.Id == tripId && trip.driver.Id == driverId, cancellationToken: cancellationToken);
                 if (trip == null) return Results.NotFound("Such trip not found");
+                //TODO trip validation
                 
-                var user = await dbContext.Users.FirstOrDefaultAsync(user => user.Id == createPassengerDto.userId, cancellationToken: cancellationToken);
-                if (user == null) return Results.NotFound("Such user not found");
+              //  var user = await dbContext.Users.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken: cancellationToken);
+              //  if (user == null) return Results.NotFound("Such user not found");
                 
-                if(driver.user.Id == createPassengerDto.userId) return Results.UnprocessableEntity("Driver cannot register to it's own trip");
+                if(driver.User.Id == userId) return Results.UnprocessableEntity("Driver cannot register to it's own trip");
                 
-                var passengerCheck = await dbContext.Passengers.FirstOrDefaultAsync(p => p.trip.Id == tripId && p.traveler.Id == createPassengerDto.userId, cancellationToken: cancellationToken);
+                var passengerCheck = await dbContext.Passengers.FirstOrDefaultAsync(p => p.trip.Id == tripId && p.Traveler.Id == userId, cancellationToken: cancellationToken);
                 if (passengerCheck != null) return Results.UnprocessableEntity("This user has already registered to this trip");
 
                 var passenger = new Passenger
@@ -77,7 +83,7 @@ public static class PassengerEndpoints
                     endAdress = createPassengerDto.endAdress,
                     comment = createPassengerDto.comment,
                     trip = trip,
-                    traveler = user
+                    TravelerId = userId
                 };
 
                 dbContext.Passengers.Add(passenger);
@@ -87,8 +93,8 @@ public static class PassengerEndpoints
             });
         
         // UPDATE
-        passengerGroup.MapPut("passengers/{passengerId}", async (int driverId, int tripId, int passengerId, [Validate] UpdatePassengerDto updatePassengerDto,
-            LsDbContext dbContext, CancellationToken cancellationToken) =>
+        passengerGroup.MapPut("passengers/{passengerId}", async (string driverId, string tripId, string passengerId, [Validate] UpdatePassengerDto updatePassengerDto,
+            LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
         {
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null) return Results.NotFound("Such driver not found");
@@ -96,11 +102,20 @@ public static class PassengerEndpoints
             var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                 trip.Id == tripId && trip.driver.Id == driverId, cancellationToken: cancellationToken);
             if (trip == null) return Results.NotFound("Such trip not found");
+            //TODO trip validation
             
             var passenger = await dbContext.Passengers.Include(passenger => passenger.trip)
-                .Include(passenger => passenger.traveler).FirstOrDefaultAsync(passenger =>
+                .Include(passenger => passenger.Traveler).FirstOrDefaultAsync(passenger =>
                 passenger.Id == passengerId && passenger.trip.Id == tripId && passenger.trip.driver.Id == driverId, cancellationToken: cancellationToken);
             if (passenger == null) return Results.NotFound("Such passenger not found");
+            
+            
+            var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            if (passenger.TravelerId != userId)
+            {
+                return Results.Forbid();
+            }
+            
 
             passenger.registrationStatus = updatePassengerDto.registrationStatus ?? passenger.registrationStatus;
             passenger.startCity = updatePassengerDto.startCity ?? passenger.startCity;
@@ -116,7 +131,7 @@ public static class PassengerEndpoints
         });
 
         // DELETE
-        passengerGroup.MapDelete("passengers/{passengerId}", async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+        passengerGroup.MapDelete("passengers/{passengerId}", async (string driverId, string tripId, string passengerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
         {
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
@@ -126,11 +141,17 @@ public static class PassengerEndpoints
                 trip.Id == tripId && trip.driver.Id == driverId, cancellationToken: cancellationToken);
             if (trip == null) return Results.NotFound("Such trip not found");
             
-            var passenger = await dbContext.Passengers.Include(passenger => passenger.traveler).FirstOrDefaultAsync(passenger =>
-                passenger.Id == passengerId && passenger.trip.Id == tripId && passenger.trip.driver.Id == driverId, cancellationToken: cancellationToken);
+            var passenger = await dbContext.Passengers.Include(passenger => passenger.Traveler).FirstOrDefaultAsync(passenger =>
+                passenger.Id == passengerId && passenger.trip.Id == tripId && passenger.trip.driverId == driverId, cancellationToken: cancellationToken);
             if (passenger == null) return Results.NotFound("Such passenger not found");
+            
+            var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            if (passenger.TravelerId != userId)
+            {
+                return Results.Forbid();
+            }
 
-            incrementCancelledTrips(passenger.traveler, dbContext);
+            incrementCancelledTrips(passenger.Traveler, dbContext);
             
             dbContext.Remove(passenger);
             await dbContext.SaveChangesAsync(cancellationToken);
@@ -141,12 +162,12 @@ public static class PassengerEndpoints
     
     public static PassengerDto MakePassengerDto (Passenger passenger)
     {
-        return new PassengerDto(passenger.Id, passenger.registrationStatus, passenger.startCity, passenger.endCity, passenger.startAdress, passenger.endAdress, passenger.comment, passenger.traveler.Id, passenger.trip.Id);
+        return new PassengerDto(passenger.Id, passenger.registrationStatus, passenger.startCity, passenger.endCity, passenger.startAdress, passenger.endAdress, passenger.comment, passenger.Traveler.Id, passenger.trip.Id);
     }
     
-    public static void incrementCancelledTrips(User user, LsDbContext dbContext)
+    public static void incrementCancelledTrips(Traveler traveler, LsDbContext dbContext)
     {
-        user.cancelledCountTraveler += 1;
-        dbContext.Update(user);
+        traveler.cancelledCountTraveler += 1;
+        dbContext.Update(traveler);
     }
 }

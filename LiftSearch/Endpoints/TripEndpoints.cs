@@ -1,8 +1,11 @@
-﻿using LiftSearch.Data;
+﻿using System.Security.Claims;
+using LiftSearch.Auth;
+using LiftSearch.Data;
 using LiftSearch.Data.Entities;
 using LiftSearch.Data.Entities.Enums;
 using LiftSearch.Dtos;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.JsonWebTokens;
 using O9d.AspNet.FluentValidation;
 
 namespace LiftSearch.Endpoints;
@@ -13,7 +16,7 @@ public static class TripEndpoints
     {
         // GET ALL
         tripsGroup.MapGet("trips",
-            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (string driverId, LsDbContext dbContext, CancellationToken cancellationToken) =>
             {
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
@@ -26,7 +29,7 @@ public static class TripEndpoints
 
         // GET ONE
         tripsGroup.MapGet("trips/{tripId}",
-            async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (string driverId, string tripId, LsDbContext dbContext, CancellationToken cancellationToken) =>
             {
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
@@ -41,13 +44,19 @@ public static class TripEndpoints
 
         // CREATE
         tripsGroup.MapPost("trips",
-            async (int driverId, [Validate] CreateTripDto createTripDto, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (string driverId, [Validate] CreateTripDto createTripDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
                 if (createTripDto.startTime >= createTripDto.endTime) return Results.UnprocessableEntity("Start time cannot be later then end time");
                 
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
                     return Results.NotFound("Such driver not found");
+
+                var claim = httpContext.User;
+                if (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driverId)
+                {
+                    return Results.Forbid();
+                }
                 
                 var trip = new Trip
                 {
@@ -61,7 +70,7 @@ public static class TripEndpoints
                     startCity = createTripDto.startCity,
                     endCity = createTripDto.endCity,
                     tripStatus = TripStatus.Active,
-                    driver = driver
+                    driverId = driverId
                 };
 
                 dbContext.Trips.Add(trip);
@@ -71,14 +80,20 @@ public static class TripEndpoints
             });
 
         // UPDATE
-        tripsGroup.MapPut("trips/{tripId}", async (int driverId, int tripId, [Validate] UpdateTripDto updateTripDto,
-            LsDbContext dbContext, CancellationToken cancellationToken) =>
+        tripsGroup.MapPut("trips/{tripId}", async (string driverId, string tripId, [Validate] UpdateTripDto updateTripDto,
+            LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
         {
             if (updateTripDto.startTime >= updateTripDto.endTime) return Results.UnprocessableEntity("Start time cannot be later then end time");
             
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
                 return Results.NotFound("Such driver not found");
+            
+            var claim = httpContext.User;
+            if (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driverId)
+            {
+                return Results.Forbid();
+            }
             
             var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                 trip.Id == tripId && trip.driver.Id == driverId, cancellationToken: cancellationToken);
@@ -101,11 +116,17 @@ public static class TripEndpoints
         });
 
         // DELETE
-        tripsGroup.MapDelete("trips/{tripId}", async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+        tripsGroup.MapDelete("trips/{tripId}", async (string driverId, string tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
         {
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
                 return Results.NotFound("Such driver not found");
+            
+            var claim = httpContext.User;
+            if (!(claim.IsInRole(UserRoles.Driver) || claim.IsInRole(UserRoles.Admin))|| claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driverId)
+            {
+                return Results.Forbid();
+            }
             
             var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                 trip.Id == tripId && trip.driver.Id == driverId, cancellationToken: cancellationToken);

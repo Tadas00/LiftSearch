@@ -1,10 +1,11 @@
-﻿using LiftSearch.Data.Entities.Enums;
+﻿using System.ComponentModel.DataAnnotations;
+using LiftSearch.Data.Entities.Enums;
 
 namespace LiftSearch.Data.Entities;
 
 public class Trip
 {
-    public int Id { get; set; }
+    public string Id { get; set; }
     public required DateTime tripDate { get; set; }
     public required DateTime lastEditTime { get; set; }
     public required int seatsCount { get; set; }
@@ -16,7 +17,9 @@ public class Trip
     public required string endCity { get; set; }
     public required TripStatus tripStatus { get; set; }
     
-    public required Driver driver { get; set; }
+    [Required]
+    public required string driverId { get; set; }
+    public Driver driver { get; set; }
 }
 
 

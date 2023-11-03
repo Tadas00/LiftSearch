@@ -38,3 +38,16 @@ C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\obj\Debug\net7.0\LiftSearch.pdb
 C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\obj\Debug\net7.0\LiftSearch.genruntimeconfig.cache
 C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\obj\Debug\net7.0\ref\LiftSearch.dll
 C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\FluentValidation.DependencyInjectionExtensions.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.AspNetCore.Authentication.JwtBearer.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.AspNetCore.Cryptography.Internal.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.AspNetCore.Cryptography.KeyDerivation.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.AspNetCore.Identity.EntityFrameworkCore.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.Extensions.Identity.Core.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.Extensions.Identity.Stores.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.Extensions.Options.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.IdentityModel.JsonWebTokens.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.IdentityModel.Logging.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.IdentityModel.Protocols.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.IdentityModel.Protocols.OpenIdConnect.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\Microsoft.IdentityModel.Tokens.dll
+C:\Users\HP\RiderProjects\LiftSearch\LiftSearch\bin\Debug\net7.0\System.IdentityModel.Tokens.Jwt.dll
