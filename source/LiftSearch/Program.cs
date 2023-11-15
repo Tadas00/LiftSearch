@@ -27,6 +27,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<LsDbContext>();
 builder.Services.AddTransient<JwtTokenService>();
 //builder.Services.AddScoped<AuthDbSeeder>();
+//builder.Services.AddScoped<AuthDbSeeder>();
 
 
 var services = new ServiceCollection();
@@ -93,7 +94,7 @@ PassengerEndpoints.AddPassengerApi(passengersGroup);
 
 using var scope = app.Services.CreateScope();
 
-var dbContext = scope.ServiceProvider.GetRequiredService<DbContext>();
+var dbContext = scope.ServiceProvider.GetRequiredService<LsDbContext>();
 dbContext.Database.Migrate();
 
 //var dbSeeder = scope.ServiceProvider.GetRequiredService<AuthDbSeeder>();
