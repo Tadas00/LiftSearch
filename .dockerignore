@@ -1,0 +1,8 @@
+# directories
+source/LiftSearch/bin/
+source/LiftSearch/obj/
+source/LiftSearch/out/
+
+# files
+Dockerfile*
+**/*.md
