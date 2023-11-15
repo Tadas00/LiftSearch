@@ -1,6 +1,6 @@
 # Learn about building .NET container images:
 # https://github.com/dotnet/dotnet-docker/blob/main/samples/README.md
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:7.0-alpine AS build
 ARG TARGETARCH
 WORKDIR /source
 
@@ -24,7 +24,7 @@ RUN apk add --no-cache \
     icu-libs
     
 # final stage/image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine
+FROM mcr.microsoft.com/dotnet/aspnet:7.0-alpine
 WORKDIR /app
 COPY --from=build /app .
 ENTRYPOINT ["./LiftSearch"]
