@@ -95,7 +95,7 @@ PassengerEndpoints.AddPassengerApi(passengersGroup);
 using var scope = app.Services.CreateScope();
 
 var dbContext = scope.ServiceProvider.GetRequiredService<LsDbContext>();
-//dbContext.Database.Migrate();
+dbContext.Database.Migrate();
 
 //var dbSeeder = scope.ServiceProvider.GetRequiredService<AuthDbSeeder>();
 //await dbSeeder.SeedAsync();
