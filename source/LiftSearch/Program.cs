@@ -9,6 +9,7 @@ using LiftSearch.Data.Entities.Enums;
 using LiftSearch.Dtos;
 using LiftSearch.Endpoints;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.ModelBinding.Binders;
@@ -25,7 +26,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddDbContext<LsDbContext>();
 builder.Services.AddTransient<JwtTokenService>();
-builder.Services.AddScoped<AuthDbSeeder>();
+//builder.Services.AddScoped<AuthDbSeeder>();
 
 
 var services = new ServiceCollection();
@@ -91,8 +92,11 @@ PassengerEndpoints.AddPassengerApi(passengersGroup);
 
 
 using var scope = app.Services.CreateScope();
-var dbSeeder = scope.ServiceProvider.GetRequiredService<AuthDbSeeder>();
-await dbSeeder.SeedAsync();
 
+var dbContext = scope.ServiceProvider.GetRequiredService<DbContext>();
+dbContext.Database.Migrate();
+
+//var dbSeeder = scope.ServiceProvider.GetRequiredService<AuthDbSeeder>();
+//await dbSeeder.SeedAsync();
 
 app.Run();
