@@ -6,11 +6,11 @@ WORKDIR /source
 
 # copy csproj and restore as distinct layers
 COPY source/LiftSearch/*.csproj .
-RUN dotnet restore -a $TARGETARCH
+RUN dotnet restore -a linus-musl-x64
 
 # copy and publish app and libraries
 COPY source/LiftSearch/. .
-RUN dotnet publish --no-restore -a $TARGETARCH -o /app
+RUN dotnet publish --no-restore -a linus-musl-x64 -o /app
 
 # final stage/image
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine
