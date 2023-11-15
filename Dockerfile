@@ -6,11 +6,11 @@ WORKDIR /source
 
 # copy csproj and restore as distinct layers
 COPY source/LiftSearch/*.csproj .
-RUN dotnet restore -a $TARGETARCH
+RUN dotnet restore
 
 # copy and publish app and libraries
 COPY source/LiftSearch/. .
-RUN dotnet publish --no-restore -a $TARGETARCH -o /app
+RUN dotnet publish --no-restore -o /app
 
 
 # Enable globalization and time zones:
