@@ -1,4 +1,5 @@
 ﻿using System.Security.Claims;
+using LiftSearch.Auth;
 using LiftSearch.Data;
 using LiftSearch.Data.Entities;
 using LiftSearch.Data.Entities.Enums;
@@ -16,8 +17,14 @@ public class TravelerEndpoint
     {
         // GET ALL
         travelersGroup.MapGet("travelers",
-            async (LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
+                var claim = httpContext.User;
+                if (!claim.IsInRole(UserRoles.Admin))
+                {
+                    return Results.Forbid();
+                }
+                
                 return Results.Ok(
                     (await dbContext.Travelers.Include(traveler => traveler.User).ToListAsync(cancellationToken)).Select(
                         traveler =>
@@ -26,23 +33,35 @@ public class TravelerEndpoint
 
         // GET ONE
         travelersGroup.MapGet("travelers/{travelerId}",
-            async (int travelerId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (int travelerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
                 var traveler = await dbContext.Travelers.Include(traveler => traveler.User).FirstOrDefaultAsync(traveler => traveler.Id == travelerId, cancellationToken: cancellationToken);
                 if (traveler == null)
                     return Results.NotFound(new { error = "Such traveler not found" });
 
+                var claim = httpContext.User;
+                if (!claim.IsInRole(UserRoles.Admin) && !claim.IsInRole(UserRoles.Driver) && (!claim.IsInRole(UserRoles.Traveler) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != traveler.UserId))
+                {
+                    return Results.Forbid();
+                }
+                
                 return Results.Ok(MakeTravelerDto(traveler, dbContext));
             });
         
         // CREATE
-        travelersGroup.MapPost("travelers", async ([Validate] CreateTravelerDto createTravelerDto, LsDbContext dbContext, CancellationToken cancellationToken) =>
+        travelersGroup.MapPost("travelers", async ([Validate] CreateTravelerDto createTravelerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
         {
+            var claim = httpContext.User;
+            if (!claim.IsInRole(UserRoles.Admin))
+            {
+                return Results.Forbid();
+            }
+            
             var user = await dbContext.Users.FirstOrDefaultAsync(user => user.Id == createTravelerDto.userId, cancellationToken: cancellationToken);
-            if (user == null) return Results.NotFound("Such user not found");
+            if (user == null) return Results.NotFound(new { error = "Such user not found" });
             
             var travelerCheck = await dbContext.Travelers.FirstOrDefaultAsync(t => t.UserId == createTravelerDto.userId, cancellationToken: cancellationToken);
-            if (travelerCheck != null) return Results.UnprocessableEntity("This user is already a traveler");
+            if (travelerCheck != null) return Results.UnprocessableEntity(new { error = "This user is already a traveler" });
             
             var traveler = new Traveler()
             {
@@ -65,11 +84,10 @@ public class TravelerEndpoint
         travelersGroup.MapPut("travelers/{travelerId}",
             async (int travelerId, [Validate] UpdateTravelerDto updateTravelerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
-                
                 var traveler = await dbContext.Travelers.Include(traveler => traveler.User).FirstOrDefaultAsync(traveler => traveler.Id == travelerId, cancellationToken: cancellationToken);
                 if (traveler == null)
-                    return Results.NotFound("Such traveler not found");
-
+                    return Results.NotFound(new { error = "Such traveler not found" });
+                
                 var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
                 if (traveler.UserId != userId)
                 {
@@ -90,21 +108,21 @@ public class TravelerEndpoint
             
             var traveler = await dbContext.Travelers.Include(traveler => traveler.User).FirstOrDefaultAsync(traveler => traveler.Id == travelerId, cancellationToken: cancellationToken);
             if (traveler == null)
-                return Results.NotFound("Such traveler not found");
+                return Results.NotFound(new { error = "Such traveler not found" });
             
-            var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
-            if (traveler.UserId != userId)
+            var claim = httpContext.User;
+            if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Traveler) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != traveler.UserId))
             {
                 return Results.Forbid();
             }
             
             var countActiveTrips = dbContext.Passengers.Include(t => t.trip).Include(t => t.Traveler).Count(t => t.Traveler.Id == travelerId && t.trip.tripStatus == TripStatus.Active);
             if (countActiveTrips != 0)
-                return Results.UnprocessableEntity("Traveler can't be removed because he has active trips");
+                return Results.UnprocessableEntity(new { error = "Traveler can't be removed because he has active trips" });
             
             var countActiveDrives = dbContext.Trips.Include(t => t.Driver).Count(t => t.Driver.Id == travelerId && t.tripStatus == TripStatus.Active);
             if (countActiveDrives != 0)
-                return Results.UnprocessableEntity("Driver can't be removed because he has active trips");
+                return Results.UnprocessableEntity(new { error = "Driver can't be removed because he has active trips" });
 
             dbContext.Remove(traveler);
             await userManager.DeleteAsync(traveler.User);

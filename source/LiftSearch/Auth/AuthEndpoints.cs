@@ -68,10 +68,11 @@ public static class AuthEndpoints
         // register traveler
         app.MapPost("api/register", async (UserManager<User> userManager, RegisterUserDto registerUserDto, LsDbContext dbContext, CancellationToken cancellationToken) =>
         {
-            //check user exists
+            //user exists
             var user = await userManager.FindByNameAsync(registerUserDto.Username);
-            if (user != null) return Results.UnprocessableEntity("User name already taken");
+            if (user != null) return Results.UnprocessableEntity("Username already taken");
 
+            //create user
             var newUser = new User()
             {
                 Email = registerUserDto.Email,
@@ -83,7 +84,8 @@ public static class AuthEndpoints
 
             await userManager.AddToRoleAsync(newUser, UserRoles.Traveler);
             
-            //create
+            //TODO
+            //create traveler
             var traveler = new Traveler()
             {
                 cancelledCountTraveler = 0,
@@ -93,11 +95,10 @@ public static class AuthEndpoints
                 UserId = newUser.Id
             };
 
-            //TODO
             dbContext.Travelers.Add(traveler);
             await dbContext.SaveChangesAsync(cancellationToken);
-            //create
-
+            
+            //return
             return Results.Created("api/login", new UserDto(newUser.Id, newUser.UserName, newUser.Email));
         });
 
@@ -109,9 +110,11 @@ public static class AuthEndpoints
             var user = await userManager.FindByNameAsync(loginUserDto.Username);
             if (user == null) return Results.UnprocessableEntity("Username or password was incorrect");
 
+            //check password
             var isPasswordValid = await userManager.CheckPasswordAsync(user, loginUserDto.Password);
             if (!isPasswordValid) Results.UnprocessableEntity("Username or password was incorrect");
 
+            //generate tokens
             user.forceRelogin = false;
             await userManager.UpdateAsync(user);
             
@@ -119,13 +122,12 @@ public static class AuthEndpoints
             var accessToken = jwtTokenService.CreateAccessToken(user.UserName, user.Id, roles);
             var refreshToken = jwtTokenService.CreateRefreshToken(user.Id);
 
+            //return
             return Results.Ok(new SuccesfullLoginDto(accessToken, refreshToken));
         });
 
         // accessToken
-        app.MapPost("api/accessToken",
-            async (UserManager<User> userManager, JwtTokenService jwtTokenService,
-                RefreshAccessTokenDto refreshAccessTokenDto) =>
+        app.MapPost("api/accessToken", async (UserManager<User> userManager, JwtTokenService jwtTokenService, RefreshAccessTokenDto refreshAccessTokenDto) =>
             {
                 if (!jwtTokenService.TryParseRefreshToken(refreshAccessTokenDto.RefreshToken, out var claims))
                 {
@@ -145,6 +147,26 @@ public static class AuthEndpoints
                 
                 return Results.Ok(new SuccesfullLoginDto(accessToken, refreshToken));
             });
+        
+        //logout
+        app.MapPost("api/logout", async (UserManager<User> userManager, JwtTokenService jwtTokenService, LogoutUserDto logoutUserDto) =>
+        {
+            if (!jwtTokenService.TryParseRefreshToken(logoutUserDto.RefreshToken, out var claims))
+            {
+                return Results.UnprocessableEntity();
+            }
+
+            var userId = claims.FindFirstValue(JwtRegisteredClaimNames.Sub);
+
+            var user = await userManager.FindByIdAsync(userId);
+            if (user == null) return Results.UnprocessableEntity("Invalid token");
+
+            user.forceRelogin = true;
+            await userManager.UpdateAsync(user);
+
+            //return
+            return Results.Ok();
+        });
     }
 }
 

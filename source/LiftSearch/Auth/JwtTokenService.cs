@@ -33,14 +33,13 @@ public class JwtTokenService
 
             issuer: _issuer,
             audience: _audience,
-            expires: DateTime.UtcNow.AddMinutes(10),
+            expires: DateTime.UtcNow.AddMinutes(5),
             claims: authClaims,
             signingCredentials: new SigningCredentials(_authSigningKey, SecurityAlgorithms.HmacSha256)
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
-    
     
     public string CreateRefreshToken(string userId)
     {

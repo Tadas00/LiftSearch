@@ -41,11 +41,17 @@ public static class DriverEndpoints
         
         // GET PASSENGERS
         driversGroup.MapGet("drivers/{driverId}/passengers",
-            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
                 var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
-                    return Results.NotFound("Such driver not found");
+                    return Results.NotFound(new { error = "Such driver not found"});
+                
+                var claim = httpContext.User;
+                if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId))
+                {
+                    return Results.Forbid();
+                }
 
                 return Results.Ok((await dbContext.Passengers.Include(p => p.trip.Driver).Include(p => p.Traveler).Where(p => p.trip.DriverId == driverId).ToListAsync(cancellationToken)).Select(passenger => PassengerEndpoints.MakePassengerDto(passenger)));
             });
@@ -57,16 +63,16 @@ public static class DriverEndpoints
             string? userId;
             if (claim.IsInRole(UserRoles.Admin) && createDriverDto.userId != null)
                 userId = createDriverDto.userId;
-            else if (claim.IsInRole(UserRoles.Traveler))
+            else if (claim.IsInRole(UserRoles.Traveler) && !claim.IsInRole(UserRoles.Driver))
                 userId = claim.FindFirstValue(JwtRegisteredClaimNames.Sub);
             else
                 return Results.Forbid();
             
             var user = await dbContext.Users.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken: cancellationToken);
-            if (user == null) return Results.NotFound("Such user not found");
+            if (user == null) return Results.NotFound(new { error = "Such user not found"});
             
             var driverCheck = await dbContext.Drivers.FirstOrDefaultAsync(d => d.UserId == userId, cancellationToken: cancellationToken);
-            if (driverCheck != null) return Results.UnprocessableEntity("This user is already a driver");
+            if (driverCheck != null) return Results.UnprocessableEntity(new { error = "This user is already a driver"});
             
             var driver = new Driver()
             {
@@ -89,10 +95,9 @@ public static class DriverEndpoints
         driversGroup.MapPut("drivers/{driverId}",
             async (int driverId, [Validate] UpdateDriverDto updateDriverDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
-                
                 var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
-                    return Results.NotFound("Such driver not found");
+                    return Results.NotFound(new { error = "Such driver not found"});
                 
                 var claim = httpContext.User;
                 if (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId)
@@ -111,20 +116,19 @@ public static class DriverEndpoints
         // DELETE
         driversGroup.MapDelete("drivers/{driverId}", async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken, UserManager<User> userManager, HttpContext httpContext) =>
         {
-            
             var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
-                return Results.NotFound("Such driver not found");
+                return Results.NotFound(new { error = "Such driver not found"});
             
             var claim = httpContext.User;
-            if (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId)
+            if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId))
             {
                 return Results.Forbid();
             }
             
             var countActiveTrips = dbContext.Trips.Include(t => t.Driver).Count(t => t.DriverId == driverId && t.tripStatus == TripStatus.Active);
             if (countActiveTrips != 0)
-                return Results.UnprocessableEntity("Driver can't be removed because he has active trips");
+                return Results.UnprocessableEntity(new { error = "Driver can't be removed because he has active trips"});
             
             await userManager.RemoveFromRoleAsync(driver.User, UserRoles.Driver);
 

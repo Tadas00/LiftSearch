@@ -16,15 +16,21 @@ public static class PassengerEndpoints
     {
         // GET ALL
         passengerGroup.MapGet("passengers",
-            async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
-                    return Results.NotFound("Such driver not found");
-            
+                    return Results.NotFound(new { error = "Such driver not found"});
+                
+                var claim = httpContext.User;
+                if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId))
+                {
+                    return Results.Forbid();
+                }
+                
                 var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                     trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
-                if (trip == null) return Results.NotFound("Such trip not found");
+                if (trip == null) return Results.NotFound(new { error = "Such trip not found"});
                 
                 return Results.Ok(
                     (await dbContext.Passengers
@@ -35,20 +41,26 @@ public static class PassengerEndpoints
 
         // GET ONE
         passengerGroup.MapGet("passengers/{passengerId}",
-            async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
-                    return Results.NotFound("Such driver not found");
+                    return Results.NotFound(new { error = "Such driver not found"});
             
+                var claim = httpContext.User;
+                if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId))
+                {
+                    return Results.Forbid();
+                }
+                
                 var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                     trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
-                if (trip == null) return Results.NotFound("Such trip not found");
+                if (trip == null) return Results.NotFound(new { error = "Such trip not found"});
                 
                 var passenger = await dbContext.Passengers.Include(passenger => passenger.trip)
                     .Include(passenger => passenger.Traveler).FirstOrDefaultAsync(passenger =>
                     passenger.Id == passengerId && passenger.trip.Id == tripId && passenger.trip.Driver.Id == driverId, cancellationToken: cancellationToken);
-                if (passenger == null) return Results.NotFound("Such passenger not found");
+                if (passenger == null) return Results.NotFound(new { error = "Such passenger not found"});
 
                 return Results.Ok(MakePassengerDto(passenger));
             });
@@ -57,22 +69,25 @@ public static class PassengerEndpoints
         passengerGroup.MapPost("passengers",
             async (int driverId, int tripId, [Validate] CreatePassengerDto createPassengerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
             {
-                var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
+                var claim = httpContext.User;
+                if (!claim.IsInRole(UserRoles.Traveler))
+                {
+                    return Results.Forbid();
+                }
+                
+                var userId = claim.FindFirstValue(JwtRegisteredClaimNames.Sub);
                 
                 var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
-                if (driver == null) return Results.NotFound("Such driver not found");
+                if (driver == null) return Results.NotFound(new { error = "Such driver not found" });
             
                 var trip = await dbContext.Trips.FirstOrDefaultAsync(trip => trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
-                if (trip == null) return Results.NotFound("Such trip not found");
+                if (trip == null) return Results.NotFound(new { error = "Such trip not found" });
                 //TODO trip validation
                 
-              //  var user = await dbContext.Users.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken: cancellationToken);
-              //  if (user == null) return Results.NotFound("Such user not found");
-                
-                if(driver.User.Id == userId) return Results.UnprocessableEntity("Driver cannot register to it's own trip");
+                if(driver.User.Id == userId) return Results.UnprocessableEntity(new { error = "Driver cannot register to it's own trip" });
                 
                 var passengerCheck = await dbContext.Passengers.FirstOrDefaultAsync(p => p.trip.Id == tripId && p.Traveler.UserId == userId, cancellationToken: cancellationToken);
-                if (passengerCheck != null) return Results.UnprocessableEntity("This user has already registered to this trip");
+                if (passengerCheck != null) return Results.UnprocessableEntity(new { error = "This user has already registered to this trip" });
                 
                 var traveler = await dbContext.Travelers.FirstOrDefaultAsync(t => t.UserId == userId, cancellationToken: cancellationToken);
 
@@ -99,25 +114,24 @@ public static class PassengerEndpoints
             LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
         {
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
-            if (driver == null) return Results.NotFound("Such driver not found");
+            if (driver == null) return Results.NotFound(new { error = "Such driver not found" });
             
             var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                 trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
-            if (trip == null) return Results.NotFound("Such trip not found");
+            if (trip == null) return Results.NotFound(new { error = "Such trip not found" });
             //TODO trip validation
             
             var passenger = await dbContext.Passengers.Include(passenger => passenger.trip)
                 .Include(passenger => passenger.Traveler).FirstOrDefaultAsync(passenger =>
                 passenger.Id == passengerId && passenger.trip.Id == tripId && passenger.trip.Driver.Id == driverId, cancellationToken: cancellationToken);
-            if (passenger == null) return Results.NotFound("Such passenger not found");
+            if (passenger == null) return Results.NotFound(new { error = "Such passenger not found" });
             
             
             var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
-            if (passenger.Traveler.UserId != userId)
+            if (!httpContext.User.IsInRole(UserRoles.Traveler) || passenger.Traveler.UserId != userId)
             {
                 return Results.Forbid();
             }
-            
 
             passenger.registrationStatus = updatePassengerDto.registrationStatus ?? passenger.registrationStatus;
             passenger.startCity = updatePassengerDto.startCity ?? passenger.startCity;
@@ -137,18 +151,18 @@ public static class PassengerEndpoints
         {
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
-                return Results.NotFound("Such driver not found");
+                return Results.NotFound(new { error = "Such driver not found" });
             
             var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                 trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
-            if (trip == null) return Results.NotFound("Such trip not found");
+            if (trip == null) return Results.NotFound(new { error = "Such trip not found" });
             
             var passenger = await dbContext.Passengers.Include(passenger => passenger.Traveler).FirstOrDefaultAsync(passenger =>
                 passenger.Id == passengerId && passenger.trip.Id == tripId && passenger.trip.DriverId == driverId, cancellationToken: cancellationToken);
-            if (passenger == null) return Results.NotFound("Such passenger not found");
+            if (passenger == null) return Results.NotFound(new { error = "Such passenger not found" });
             
-            var userId = httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub);
-            if (passenger.Traveler.UserId != userId)
+            var claim = httpContext.User;
+            if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId) && (!claim.IsInRole(UserRoles.Traveler) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != passenger.Traveler.UserId))
             {
                 return Results.Forbid();
             }
