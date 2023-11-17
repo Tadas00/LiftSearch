@@ -80,7 +80,7 @@ public static class AuthEndpoints
             };
 
             var createUserResults = await userManager.CreateAsync(newUser, registerUserDto.Password);
-            if (!createUserResults.Succeeded) return Results.UnprocessableEntity(createUserResults.ToString());
+            if (!createUserResults.Succeeded) return Results.UnprocessableEntity(new { error = createUserResults.ToString() });
 
             await userManager.AddToRoleAsync(newUser, UserRoles.Traveler);
             
