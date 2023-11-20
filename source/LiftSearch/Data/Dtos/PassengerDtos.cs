@@ -24,7 +24,6 @@ public class UpdatePassengerDtoValidator : AbstractValidator<UpdatePassengerDto>
 {
     public UpdatePassengerDtoValidator()
     {
-        RuleFor(dto => dto.registrationStatus).NotEmpty();
         RuleFor(dto => dto.startCity).NotEmpty().Length(min: 4, max: 20);
         RuleFor(dto => dto.endCity).NotEmpty().Length(min: 4, max: 20);
         RuleFor(dto => dto.startAdress).Length(min: 4, max: 30);

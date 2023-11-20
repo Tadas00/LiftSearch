@@ -4,6 +4,7 @@ using LiftSearch.Data;
 using LiftSearch.Data.Entities;
 using LiftSearch.Data.Entities.Enums;
 using LiftSearch.Dtos;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using O9d.AspNet.FluentValidation;
@@ -16,7 +17,7 @@ public static class PassengerEndpoints
     {
         // GET ALL
         passengerGroup.MapGet("passengers",
-            async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+            async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
             {
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
@@ -27,6 +28,9 @@ public static class PassengerEndpoints
                 {
                     return Results.Forbid();
                 }
+                var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user.forceRelogin) return Results.Forbid();
                 
                 var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                     trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
@@ -41,7 +45,7 @@ public static class PassengerEndpoints
 
         // GET ONE
         passengerGroup.MapGet("passengers/{passengerId}",
-            async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+            async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
             {
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
@@ -52,6 +56,9 @@ public static class PassengerEndpoints
                 {
                     return Results.Forbid();
                 }
+                var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user.forceRelogin) return Results.Forbid();
                 
                 var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                     trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
@@ -67,13 +74,16 @@ public static class PassengerEndpoints
         
         // CREATE
         passengerGroup.MapPost("passengers",
-            async (int driverId, int tripId, [Validate] CreatePassengerDto createPassengerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+            async (int driverId, int tripId, [Validate] CreatePassengerDto createPassengerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
             {
                 var claim = httpContext.User;
                 if (!claim.IsInRole(UserRoles.Traveler))
                 {
                     return Results.Forbid();
                 }
+                var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user.forceRelogin) return Results.Forbid();
                 
                 var userId = claim.FindFirstValue(JwtRegisteredClaimNames.Sub);
                 
@@ -111,8 +121,13 @@ public static class PassengerEndpoints
         
         // UPDATE
         passengerGroup.MapPut("passengers/{passengerId}", async (int driverId, int tripId, int passengerId, [Validate] UpdatePassengerDto updatePassengerDto,
-            LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+            LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
         {
+            var claim = httpContext.User;
+            var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+            if (user == null) return Results.UnprocessableEntity("Invalid token");
+            if (user.forceRelogin) return Results.Forbid();
+            
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null) return Results.NotFound(new { error = "Such driver not found" });
             
@@ -147,7 +162,7 @@ public static class PassengerEndpoints
         });
 
         // DELETE
-        passengerGroup.MapDelete("passengers/{passengerId}", async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+        passengerGroup.MapDelete("passengers/{passengerId}", async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
         {
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
@@ -166,6 +181,9 @@ public static class PassengerEndpoints
             {
                 return Results.Forbid();
             }
+            var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+            if (user == null) return Results.UnprocessableEntity("Invalid token");
+            if (user.forceRelogin) return Results.Forbid();
 
             incrementCancelledTrips(passenger.Traveler, dbContext);
             

@@ -41,7 +41,7 @@ public static class DriverEndpoints
         
         // GET PASSENGERS
         driversGroup.MapGet("drivers/{driverId}/passengers",
-            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
             {
                 var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
@@ -52,6 +52,10 @@ public static class DriverEndpoints
                 {
                     return Results.Forbid();
                 }
+                
+                var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user.forceRelogin) return Results.Forbid();
 
                 return Results.Ok((await dbContext.Passengers.Include(p => p.trip.Driver).Include(p => p.Traveler).Where(p => p.trip.DriverId == driverId).ToListAsync(cancellationToken)).Select(passenger => PassengerEndpoints.MakePassengerDto(passenger)));
             });
@@ -70,6 +74,7 @@ public static class DriverEndpoints
             
             var user = await dbContext.Users.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken: cancellationToken);
             if (user == null) return Results.NotFound(new { error = "Such user not found"});
+            if (user.forceRelogin) return Results.Forbid();
             
             var driverCheck = await dbContext.Drivers.FirstOrDefaultAsync(d => d.UserId == userId, cancellationToken: cancellationToken);
             if (driverCheck != null) return Results.UnprocessableEntity(new { error = "This user is already a driver"});
@@ -93,7 +98,7 @@ public static class DriverEndpoints
         
         // UPDATE
         driversGroup.MapPut("drivers/{driverId}",
-            async (int driverId, [Validate] UpdateDriverDto updateDriverDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+            async (int driverId, [Validate] UpdateDriverDto updateDriverDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
             {
                 var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
@@ -104,6 +109,9 @@ public static class DriverEndpoints
                 {
                     return Results.Forbid();
                 }
+                var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user.forceRelogin) return Results.Forbid();
 
                 driver.driverBio = updateDriverDto.driverBio ?? driver.driverBio;
 
@@ -125,6 +133,9 @@ public static class DriverEndpoints
             {
                 return Results.Forbid();
             }
+            var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+            if (user == null) return Results.UnprocessableEntity("Invalid token");
+            if (user.forceRelogin) return Results.Forbid();
             
             var countActiveTrips = dbContext.Trips.Include(t => t.Driver).Count(t => t.DriverId == driverId && t.tripStatus == TripStatus.Active);
             if (countActiveTrips != 0)

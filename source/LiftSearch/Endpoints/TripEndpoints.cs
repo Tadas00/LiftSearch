@@ -4,6 +4,7 @@ using LiftSearch.Data;
 using LiftSearch.Data.Entities;
 using LiftSearch.Data.Entities.Enums;
 using LiftSearch.Dtos;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
 using O9d.AspNet.FluentValidation;
@@ -45,7 +46,7 @@ public static class TripEndpoints
 
         // CREATE
         tripsGroup.MapPost("trips",
-            async (int driverId, [Validate] CreateTripDto createTripDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+            async (int driverId, [Validate] CreateTripDto createTripDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
             {
                 if (createTripDto.startTime >= createTripDto.endTime) return Results.UnprocessableEntity(new { error = "Start time cannot be later then end time" });
                 
@@ -58,6 +59,9 @@ public static class TripEndpoints
                 {
                     return Results.Forbid();
                 }
+                var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user.forceRelogin) return Results.Forbid();
                 
                 var trip = new Trip
                 {
@@ -82,7 +86,7 @@ public static class TripEndpoints
 
         // UPDATE
         tripsGroup.MapPut("trips/{tripId}", async (int driverId, int tripId, [Validate] UpdateTripDto updateTripDto,
-            LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+            LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
         {
             if (updateTripDto.startTime >= updateTripDto.endTime) return Results.UnprocessableEntity(new { error = "Start time cannot be later then end time" });
             
@@ -95,6 +99,9 @@ public static class TripEndpoints
             {
                 return Results.Forbid();
             }
+            var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+            if (user == null) return Results.UnprocessableEntity("Invalid token");
+            if (user.forceRelogin) return Results.Forbid();
             
             var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                 trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
@@ -117,7 +124,7 @@ public static class TripEndpoints
         });
 
         // DELETE
-        tripsGroup.MapDelete("trips/{tripId}", async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+        tripsGroup.MapDelete("trips/{tripId}", async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
         {
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
@@ -128,6 +135,9 @@ public static class TripEndpoints
             {
                 return Results.Forbid();
             }
+            var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+            if (user == null) return Results.UnprocessableEntity("Invalid token");
+            if (user.forceRelogin) return Results.Forbid();
             
             var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                 trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
