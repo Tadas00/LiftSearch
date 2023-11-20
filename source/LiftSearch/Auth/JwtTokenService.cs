@@ -86,4 +86,29 @@ public class JwtTokenService
             return false;
         }
     }
+    
+    public bool TryParseAccessToken(string AccessToken)
+    {
+        //claims = null;
+
+        try
+        {
+            var tokenHandler = new JwtSecurityTokenHandler();
+
+            var validationParameters = new TokenValidationParameters
+            {
+                ValidIssuer = _issuer,
+                ValidAudience = _audience,
+                IssuerSigningKey = _authSigningKey,
+                ValidateLifetime = true
+            };
+
+            tokenHandler.ValidateToken(AccessToken, validationParameters, out _);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 }

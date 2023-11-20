@@ -4,6 +4,7 @@ using LiftSearch.Data;
 using LiftSearch.Data.Entities;
 using LiftSearch.Data.Entities.Enums;
 using LiftSearch.Dtos;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -57,13 +58,16 @@ public class TravelerEndpoint
             });
         
         // CREATE
-        travelersGroup.MapPost("travelers", async ([Validate] CreateTravelerDto createTravelerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext) =>
+        travelersGroup.MapPost("travelers", async ([Validate] CreateTravelerDto createTravelerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, JwtTokenService jwtTokenService) =>
         {
             var claim = httpContext.User;
             if (!claim.IsInRole(UserRoles.Admin))
             {
                 return Results.Forbid();
             }
+
+            string accessToken = httpContext.GetTokenAsync("access-token").ToString();
+            if (jwtTokenService.TryParseAccessToken(accessToken) == false) return Results.Unauthorized();
             
             var user = await dbContext.Users.FirstOrDefaultAsync(user => user.Id == createTravelerDto.userId, cancellationToken: cancellationToken);
             if (user == null) return Results.NotFound(new { error = "Such user not found" });

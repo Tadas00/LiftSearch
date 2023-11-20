@@ -4,6 +4,7 @@ using LiftSearch.Data;
 using LiftSearch.Data.Entities;
 using LiftSearch.Data.Entities.Enums;
 using LiftSearch.Dtos;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -17,13 +18,18 @@ public static class PassengerEndpoints
     {
         // GET ALL
         passengerGroup.MapGet("passengers",
-            async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
             {
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
                     return Results.NotFound(new { error = "Such driver not found"});
                 
                 var claim = httpContext.User;
+                
+                string accessToken = httpContext.GetTokenAsync("access_token").ToString();
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
+                
                 if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId))
                 {
                     return Results.Forbid();
