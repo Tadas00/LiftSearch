@@ -26,7 +26,7 @@ public static class PassengerEndpoints
                 
                 var claim = httpContext.User;
                 
-                string accessToken = httpContext.GetTokenAsync("access_token").ToString();
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
                 if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
                     return Results.Unauthorized();
                 

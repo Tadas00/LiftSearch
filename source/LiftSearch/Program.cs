@@ -37,6 +37,7 @@ builder.Services.AddValidatorsFromAssemblyContaining<TripDto>();
 builder.Services.AddValidatorsFromAssemblyContaining<PassengerDto>();
 
 
+
 builder.Services.AddIdentity<User, IdentityRole>()
     .AddEntityFrameworkStores<LsDbContext>()
     .AddDefaultTokenProviders();
@@ -54,9 +55,17 @@ builder.Services.AddAuthentication(options =>
 });
 
 
+builder.Services.AddCors();
+ 
 builder.Services.AddAuthorization();
 var app = builder.Build();
 
+app.UseCors(builder => builder
+    .AllowAnyOrigin()
+    .AllowAnyMethod()
+    .AllowAnyHeader()
+);
+    
 app.UseAuthentication();
 app.UseAuthorization();
 
