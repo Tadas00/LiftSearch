@@ -104,7 +104,7 @@ public static class AuthEndpoints
 
 
         // login
-        app.MapPost("api/login", async (UserManager<User> userManager, JwtTokenService jwtTokenService, LoginUserDto loginUserDto) =>
+        app.MapPost("api/login", async (UserManager<User> userManager, JwtTokenService jwtTokenService, LoginUserDto loginUserDto, LsDbContext dbContext) =>
         {
             //check user exists
             var user = await userManager.FindByNameAsync(loginUserDto.Username);
@@ -118,8 +118,13 @@ public static class AuthEndpoints
             user.forceRelogin = false;
             await userManager.UpdateAsync(user);
             
+            //get ids
             var roles = await userManager.GetRolesAsync(user);
-            var accessToken = jwtTokenService.CreateAccessToken(user.UserName, user.Id, roles);
+            
+            int travelerid = dbContext.Travelers.FirstOrDefaultAsync(t => t.UserId == user.Id).Result.Id;
+            int driverid = roles.Contains(UserRoles.Driver) ? dbContext.Drivers.FirstOrDefaultAsync(d => d.UserId == user.Id).Result.Id : -1;
+            
+            var accessToken = jwtTokenService.CreateAccessToken(user.UserName, user.Id, roles, driverid, travelerid);
             var refreshToken = jwtTokenService.CreateRefreshToken(user.Id);
 
             //return
@@ -127,7 +132,7 @@ public static class AuthEndpoints
         });
 
         // accessToken
-        app.MapPost("api/accessToken", async (UserManager<User> userManager, JwtTokenService jwtTokenService, RefreshAccessTokenDto refreshAccessTokenDto) =>
+        app.MapPost("api/accessToken", async (UserManager<User> userManager, JwtTokenService jwtTokenService, RefreshAccessTokenDto refreshAccessTokenDto, LsDbContext dbContext) =>
             {
                 if (!jwtTokenService.TryParseRefreshToken(refreshAccessTokenDto.RefreshToken, out var claims))
                 {
@@ -142,7 +147,11 @@ public static class AuthEndpoints
                 if (user.forceRelogin) return Results.UnprocessableEntity();
                 
                 var roles = await userManager.GetRolesAsync(user);
-                var accessToken = jwtTokenService.CreateAccessToken(user.UserName, user.Id, roles);
+                
+                int travelerid = dbContext.Travelers.FirstOrDefaultAsync(t => t.UserId == user.Id).Result.Id;
+                int driverid = roles.Contains(UserRoles.Driver) ? dbContext.Drivers.FirstOrDefaultAsync(d => d.UserId == user.Id).Result.Id : -1;
+                
+                var accessToken = jwtTokenService.CreateAccessToken(user.UserName, user.Id, roles, driverid, travelerid);
                 var refreshToken = jwtTokenService.CreateRefreshToken(user.Id);
                 
                 return Results.Ok(new SuccesfullLoginDto(accessToken, refreshToken));

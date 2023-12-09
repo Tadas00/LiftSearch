@@ -18,13 +18,16 @@ public class JwtTokenService
         _authSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration["Jwt:Secret"]));
     }
     
-    public string CreateAccessToken(string userName, string userId, IEnumerable<string> roles)
+    public string CreateAccessToken(string userName, string userId, IEnumerable<string> roles, int driverid, int travelerid)
     {
+        
         var authClaims = new List<Claim>()
         {
             new(ClaimTypes.Name, userName),
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Sub, userId)
+            new(JwtRegisteredClaimNames.Sub, userId),
+            new("driverid", driverid.ToString()),
+            new("travelerid", travelerid.ToString()),
         };
         
         authClaims.AddRange(roles.Select(role => new Claim(ClaimTypes.Role, role)));
