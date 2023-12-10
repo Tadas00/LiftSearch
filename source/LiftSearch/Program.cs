@@ -99,6 +99,8 @@ TripEndpoints.AddTripApi(tripsGroup);
 var passengersGroup = app.MapGroup("/api/drivers/{driverId}/trips/{tripId}").WithValidationFilter();
 PassengerEndpoints.AddPassengerApi(passengersGroup);
 
+var additionalGroup = app.MapGroup("/api").WithValidationFilter();
+AdditionalEndpoints.AddAdditionalApi(additionalGroup);
 
 using var scope = app.Services.CreateScope();
 
