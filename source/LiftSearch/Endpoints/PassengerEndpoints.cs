@@ -220,7 +220,7 @@ public static class PassengerEndpoints
     
     public static PassengerDto MakePassengerDto (Passenger passenger)
     {
-        return new PassengerDto(passenger.Id, passenger.registrationStatus, passenger.startCity, passenger.endCity, passenger.startAdress, passenger.endAdress, passenger.comment, passenger.Traveler.Id, passenger.trip.Id);
+        return new PassengerDto(passenger.Id, passenger.registrationStatus, passenger.startCity, passenger.endCity, passenger.startAdress, passenger.endAdress, passenger.comment, passenger.Traveler.Id, passenger.trip.Id, passenger.trip.DriverId);
     }
     
     public static void incrementCancelledTrips(Traveler traveler, LsDbContext dbContext)
