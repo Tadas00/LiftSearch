@@ -160,6 +160,7 @@ public static class AuthEndpoints
         //logout
         app.MapPost("api/logout", async (UserManager<User> userManager, JwtTokenService jwtTokenService, LogoutUserDto logoutUserDto) =>
         {
+            //TODO nepaduodu vistiek to refresh tokeno
             if (!jwtTokenService.TryParseRefreshToken(logoutUserDto.RefreshToken, out var claims))
             {
                 return Results.UnprocessableEntity();

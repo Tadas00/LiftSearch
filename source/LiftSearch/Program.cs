@@ -24,6 +24,7 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.AddCors();
 builder.Services.AddDbContext<LsDbContext>();
 builder.Services.AddTransient<JwtTokenService>();
 builder.Services.AddScoped<AuthDbSeeder>();
@@ -55,9 +56,9 @@ builder.Services.AddAuthentication(options =>
 });
 
 
-builder.Services.AddCors();
  
 builder.Services.AddAuthorization();
+
 var app = builder.Build();
 
 app.UseCors(builder => builder
