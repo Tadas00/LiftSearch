@@ -4,6 +4,7 @@ using LiftSearch.Data;
 using LiftSearch.Data.Entities;
 using LiftSearch.Data.Entities.Enums;
 using LiftSearch.Dtos;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -20,8 +21,13 @@ public static class DriverEndpoints
     {
         // GET ALL
         driversGroup.MapGet("drivers",
-            async (LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (LsDbContext dbContext, CancellationToken cancellationToken, JwtTokenService jwtTokenService, HttpContext httpContext) =>
             {
+                var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
+                
                 return Results.Ok(
                     (await dbContext.Drivers.Include(driver => driver.User).ToListAsync(cancellationToken)).Select(
                         driver =>
@@ -30,8 +36,13 @@ public static class DriverEndpoints
 
         // GET ONE
         driversGroup.MapGet("drivers/{driverId}",
-            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken, JwtTokenService jwtTokenService, HttpContext httpContext) =>
             {
+                var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
+                
                 var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
                     return Results.NotFound(new { error = "Such driver not found" });
@@ -41,13 +52,17 @@ public static class DriverEndpoints
         
         // GET PASSENGERS
         driversGroup.MapGet("drivers/{driverId}/passengers",
-            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
             {
+                var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
+                
                 var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
                     return Results.NotFound(new { error = "Such driver not found"});
                 
-                var claim = httpContext.User;
                 if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId))
                 {
                     return Results.Forbid();
@@ -61,10 +76,14 @@ public static class DriverEndpoints
             });
         
         // CREATE
-        driversGroup.MapPost("drivers", async ([Validate] CreateDriverDto createDriverDto, LsDbContext dbContext, CancellationToken cancellationToken, UserManager<User> userManager, HttpContext httpContext) =>
+        driversGroup.MapPost("drivers", async ([Validate] CreateDriverDto createDriverDto, LsDbContext dbContext, CancellationToken cancellationToken, UserManager<User> userManager, HttpContext httpContext, JwtTokenService jwtTokenService) =>
         {
             var claim = httpContext.User;
+            string accessToken = httpContext.GetTokenAsync("access_token").Result;
+            if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                return Results.Unauthorized();
             string? userId;
+            
             if (claim.IsInRole(UserRoles.Admin) && createDriverDto.userId != null)
                 userId = createDriverDto.userId;
             else if (claim.IsInRole(UserRoles.Traveler) && !claim.IsInRole(UserRoles.Driver))
@@ -98,17 +117,22 @@ public static class DriverEndpoints
         
         // UPDATE
         driversGroup.MapPut("drivers/{driverId}",
-            async (int driverId, [Validate] UpdateDriverDto updateDriverDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            async (int driverId, [Validate] UpdateDriverDto updateDriverDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
             {
+                var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
+                
                 var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
                     return Results.NotFound(new { error = "Such driver not found"});
                 
-                var claim = httpContext.User;
                 if (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId)
                 {
                     return Results.Forbid();
                 }
+                
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
                 if (user == null) return Results.UnprocessableEntity("Invalid token");
                 if (user.forceRelogin) return Results.Forbid();
@@ -122,17 +146,22 @@ public static class DriverEndpoints
             });
 
         // DELETE
-        driversGroup.MapDelete("drivers/{driverId}", async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken, UserManager<User> userManager, HttpContext httpContext) =>
+        driversGroup.MapDelete("drivers/{driverId}", async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken, UserManager<User> userManager, HttpContext httpContext, JwtTokenService jwtTokenService) =>
         {
+            var claim = httpContext.User;
+            string accessToken = httpContext.GetTokenAsync("access_token").Result;
+            if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                return Results.Unauthorized();
+            
             var driver = await dbContext.Drivers.Include(driver => driver.User).FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
                 return Results.NotFound(new { error = "Such driver not found"});
             
-            var claim = httpContext.User;
             if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId))
             {
                 return Results.Forbid();
             }
+
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
             if (user == null) return Results.UnprocessableEntity("Invalid token");
             if (user.forceRelogin) return Results.Forbid();

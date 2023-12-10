@@ -5,7 +5,7 @@ using LiftSearch.Data.Entities.Enums;
 namespace LiftSearch.Dtos;
 
 
-public record TripDto(int Id, DateTime tripDate, DateTime lastEditTime, int seatsCount, int? startTime, int? endTime, double price, string description, string startCity, string endCity, TripStatus tripStatus);
+public record TripDto(int Id, DateTime tripDate, DateTime lastEditTime, int seatsCount, int? startTime, int? endTime, double price, string description, string startCity, string endCity, TripStatus tripStatus, int driverId);
 public record CreateTripDto(DateTime tripDate, int seatsCount, int? startTime, int? endTime, double price, string description, string startCity, string endCity);
 public record UpdateTripDto(int? seatsCount, int? startTime, int? endTime, double? price, string description, string startCity, string endCity, TripStatus? tripStatus);
 

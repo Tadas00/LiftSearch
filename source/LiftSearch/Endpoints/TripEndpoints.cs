@@ -4,6 +4,7 @@ using LiftSearch.Data;
 using LiftSearch.Data.Entities;
 using LiftSearch.Data.Entities.Enums;
 using LiftSearch.Dtos;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.JsonWebTokens;
@@ -17,8 +18,12 @@ public static class TripEndpoints
     {
         // GET ALL
         tripsGroup.MapGet("trips",
-            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (int driverId, LsDbContext dbContext, CancellationToken cancellationToken, JwtTokenService jwtTokenService, HttpContext httpContext) =>
             {
+                var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
                 
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
@@ -31,8 +36,13 @@ public static class TripEndpoints
 
         // GET ONE
         tripsGroup.MapGet("trips/{tripId}",
-            async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken) =>
+            async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, JwtTokenService jwtTokenService, HttpContext httpContext) =>
             {
+                var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
+                
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
                     return Results.NotFound(new { error = "Such driver not found" });
@@ -46,19 +56,23 @@ public static class TripEndpoints
 
         // CREATE
         tripsGroup.MapPost("trips",
-            async (int driverId, [Validate] CreateTripDto createTripDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            async (int driverId, [Validate] CreateTripDto createTripDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
             {
                 if (createTripDto.startTime >= createTripDto.endTime) return Results.UnprocessableEntity(new { error = "Start time cannot be later then end time" });
                 
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
                     return Results.NotFound(new { error = "Such driver not found" });
-
+                
                 var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
                 if (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId)
                 {
                     return Results.Forbid();
                 }
+                
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
                 if (user == null) return Results.UnprocessableEntity("Invalid token");
                 if (user.forceRelogin) return Results.Forbid();
@@ -86,19 +100,23 @@ public static class TripEndpoints
 
         // UPDATE
         tripsGroup.MapPut("trips/{tripId}", async (int driverId, int tripId, [Validate] UpdateTripDto updateTripDto,
-            LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
         {
-            if (updateTripDto.startTime >= updateTripDto.endTime) return Results.UnprocessableEntity(new { error = "Start time cannot be later then end time" });
-            
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
                 return Results.NotFound(new { error = "Such driver not found" });
-            
+
             var claim = httpContext.User;
+            string accessToken = httpContext.GetTokenAsync("access_token").Result;
+            if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                return Results.Unauthorized();
             if (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId)
             {
                 return Results.Forbid();
             }
+            
+            if (updateTripDto.startTime >= updateTripDto.endTime) return Results.UnprocessableEntity(new { error = "Start time cannot be later then end time" });
+            
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
             if (user == null) return Results.UnprocessableEntity("Invalid token");
             if (user.forceRelogin) return Results.Forbid();
@@ -124,17 +142,21 @@ public static class TripEndpoints
         });
 
         // DELETE
-        tripsGroup.MapDelete("trips/{tripId}", async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+        tripsGroup.MapDelete("trips/{tripId}", async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
         {
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
                 return Results.NotFound(new { error = "Such driver not found" });
             
             var claim = httpContext.User;
+            string accessToken = httpContext.GetTokenAsync("access_token").Result;
+            if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                return Results.Unauthorized();
             if (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId)
             {
                 return Results.Forbid();
             }
+            
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
             if (user == null) return Results.UnprocessableEntity("Invalid token");
             if (user.forceRelogin) return Results.Forbid();
@@ -154,7 +176,7 @@ public static class TripEndpoints
     
     public static TripDto MakeTripDto (Trip trip)
     {
-        return new TripDto(trip.Id, trip.tripDate, trip.lastEditTime, trip.seatsCount, trip.startTime, trip.endTime, trip.price, trip.description, trip.startCity, trip.endCity, trip.tripStatus);
+        return new TripDto(trip.Id, trip.tripDate, trip.lastEditTime, trip.seatsCount, trip.startTime, trip.endTime, trip.price, trip.description, trip.startCity, trip.endCity, trip.tripStatus, trip.DriverId);
     }
     
     public static void incrementCancelledTrips(Driver driver, LsDbContext dbContext)

@@ -20,20 +20,20 @@ public static class PassengerEndpoints
         passengerGroup.MapGet("passengers",
             async (int driverId, int tripId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
             {
-                var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
-                if (driver == null)
-                    return Results.NotFound(new { error = "Such driver not found"});
-                
                 var claim = httpContext.User;
-                
                 string accessToken = httpContext.GetTokenAsync("access_token").Result;
                 if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
                     return Results.Unauthorized();
+                
+                var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
+                if (driver == null)
+                    return Results.NotFound(new { error = "Such driver not found"});
                 
                 if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId))
                 {
                     return Results.Forbid();
                 }
+                
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
                 if (user == null) return Results.UnprocessableEntity("Invalid token");
                 if (user.forceRelogin) return Results.Forbid();
@@ -51,17 +51,22 @@ public static class PassengerEndpoints
 
         // GET ONE
         passengerGroup.MapGet("passengers/{passengerId}",
-            async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
             {
+                var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
+                
                 var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
                 if (driver == null)
                     return Results.NotFound(new { error = "Such driver not found"});
-            
-                var claim = httpContext.User;
+
                 if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId))
                 {
                     return Results.Forbid();
                 }
+                
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
                 if (user == null) return Results.UnprocessableEntity("Invalid token");
                 if (user.forceRelogin) return Results.Forbid();
@@ -80,13 +85,17 @@ public static class PassengerEndpoints
         
         // CREATE
         passengerGroup.MapPost("passengers",
-            async (int driverId, int tripId, [Validate] CreatePassengerDto createPassengerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            async (int driverId, int tripId, [Validate] CreatePassengerDto createPassengerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
             {
                 var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
                 if (!claim.IsInRole(UserRoles.Traveler))
                 {
                     return Results.Forbid();
                 }
+                
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
                 if (user == null) return Results.UnprocessableEntity("Invalid token");
                 if (user.forceRelogin) return Results.Forbid();
@@ -127,9 +136,13 @@ public static class PassengerEndpoints
         
         // UPDATE
         passengerGroup.MapPut("passengers/{passengerId}", async (int driverId, int tripId, int passengerId, [Validate] UpdatePassengerDto updatePassengerDto,
-            LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
         {
             var claim = httpContext.User;
+            string accessToken = httpContext.GetTokenAsync("access_token").Result;
+            if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                return Results.Unauthorized();
+            
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
             if (user == null) return Results.UnprocessableEntity("Invalid token");
             if (user.forceRelogin) return Results.Forbid();
@@ -168,12 +181,17 @@ public static class PassengerEndpoints
         });
 
         // DELETE
-        passengerGroup.MapDelete("passengers/{passengerId}", async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+        passengerGroup.MapDelete("passengers/{passengerId}", async (int driverId, int tripId, int passengerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
         {
+            var claim = httpContext.User;
+            string accessToken = httpContext.GetTokenAsync("access_token").Result;
+            if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                return Results.Unauthorized();
+            
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null)
                 return Results.NotFound(new { error = "Such driver not found" });
-            
+
             var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                 trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
             if (trip == null) return Results.NotFound(new { error = "Such trip not found" });
@@ -181,12 +199,12 @@ public static class PassengerEndpoints
             var passenger = await dbContext.Passengers.Include(passenger => passenger.Traveler).FirstOrDefaultAsync(passenger =>
                 passenger.Id == passengerId && passenger.trip.Id == tripId && passenger.trip.DriverId == driverId, cancellationToken: cancellationToken);
             if (passenger == null) return Results.NotFound(new { error = "Such passenger not found" });
-            
-            var claim = httpContext.User;
+
             if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Driver) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != driver.UserId) && (!claim.IsInRole(UserRoles.Traveler) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != passenger.Traveler.UserId))
             {
                 return Results.Forbid();
             }
+            
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
             if (user == null) return Results.UnprocessableEntity("Invalid token");
             if (user.forceRelogin) return Results.Forbid();

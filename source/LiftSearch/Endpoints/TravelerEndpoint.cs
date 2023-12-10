@@ -18,9 +18,12 @@ public class TravelerEndpoint
     {
         // GET ALL
         travelersGroup.MapGet("travelers",
-            async (LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            async (LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
             {
                 var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
                 if (!claim.IsInRole(UserRoles.Admin))
                 {
                     return Results.Forbid();
@@ -38,13 +41,17 @@ public class TravelerEndpoint
 
         // GET ONE
         travelersGroup.MapGet("travelers/{travelerId}",
-            async (int travelerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            async (int travelerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
             {
+                var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
+                
                 var traveler = await dbContext.Travelers.Include(traveler => traveler.User).FirstOrDefaultAsync(traveler => traveler.Id == travelerId, cancellationToken: cancellationToken);
                 if (traveler == null)
                     return Results.NotFound(new { error = "Such traveler not found" });
 
-                var claim = httpContext.User;
                 if (!claim.IsInRole(UserRoles.Admin) && !claim.IsInRole(UserRoles.Driver) && (!claim.IsInRole(UserRoles.Traveler) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != traveler.UserId))
                 {
                     return Results.Forbid();
@@ -57,17 +64,46 @@ public class TravelerEndpoint
                 return Results.Ok(MakeTravelerDto(traveler, dbContext));
             });
         
+        
+        // GET ALL TRAVELER PASSENGERS
+        travelersGroup.MapGet("travelers/{travelerId}/passengers",
+            async (int travelerId, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
+            {
+                var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
+                
+                var traveler = await dbContext.Travelers.Include(traveler => traveler.User).FirstOrDefaultAsync(traveler => traveler.Id == travelerId, cancellationToken: cancellationToken);
+                if (traveler == null)
+                    return Results.NotFound(new { error = "Such traveler not found" });
+
+                if (!claim.IsInRole(UserRoles.Admin) && !(claim.IsInRole(UserRoles.Traveler) && claim.FindFirstValue(JwtRegisteredClaimNames.Sub) == traveler.UserId))
+                {
+                    return Results.Forbid();
+                }
+                
+                var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user.forceRelogin) return Results.Forbid();
+                
+                return Results.Ok(
+                    (await dbContext.Passengers.Where(p => p.TravelerId == travelerId)
+                        .Include(passenger => passenger.trip).Include(passenger => passenger.Traveler).ToListAsync(cancellationToken))
+                    .Select(passenger => MakePassengerDto(passenger)));
+            });
+        
         // CREATE
         travelersGroup.MapPost("travelers", async ([Validate] CreateTravelerDto createTravelerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, JwtTokenService jwtTokenService) =>
         {
             var claim = httpContext.User;
+            string accessToken = httpContext.GetTokenAsync("access_token").Result;
+            if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                return Results.Unauthorized();
             if (!claim.IsInRole(UserRoles.Admin))
             {
                 return Results.Forbid();
             }
-
-            string accessToken = httpContext.GetTokenAsync("access-token").ToString();
-            if (jwtTokenService.TryParseAccessToken(accessToken) == false) return Results.Unauthorized();
             
             var user = await dbContext.Users.FirstOrDefaultAsync(user => user.Id == createTravelerDto.userId, cancellationToken: cancellationToken);
             if (user == null) return Results.NotFound(new { error = "Such user not found" });
@@ -95,8 +131,17 @@ public class TravelerEndpoint
         
         // UPDATE
         travelersGroup.MapPut("travelers/{travelerId}",
-            async (int travelerId, [Validate] UpdateTravelerDto updateTravelerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager) =>
+            async (int travelerId, [Validate] UpdateTravelerDto updateTravelerDto, LsDbContext dbContext, CancellationToken cancellationToken, HttpContext httpContext, UserManager<User> userManager, JwtTokenService jwtTokenService) =>
             {
+                var claim = httpContext.User;
+                string accessToken = httpContext.GetTokenAsync("access_token").Result;
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                    return Results.Unauthorized();
+                
+                var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
+                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user.forceRelogin) return Results.Forbid();
+                
                 var traveler = await dbContext.Travelers.Include(traveler => traveler.User).FirstOrDefaultAsync(traveler => traveler.Id == travelerId, cancellationToken: cancellationToken);
                 if (traveler == null)
                     return Results.NotFound(new { error = "Such traveler not found" });
@@ -107,11 +152,6 @@ public class TravelerEndpoint
                     return Results.Forbid();
                 }
                 
-                var claim = httpContext.User;
-                var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-                if (user == null) return Results.UnprocessableEntity("Invalid token");
-                if (user.forceRelogin) return Results.Forbid();
-                
                 traveler.travelerBio = updateTravelerDto.travelerBio ?? traveler.travelerBio;
 
                 dbContext.Update(traveler);
@@ -121,14 +161,17 @@ public class TravelerEndpoint
             });
 
         // DELETE
-        travelersGroup.MapDelete("travelers/{travelerId}", async (int travelerId, LsDbContext dbContext, CancellationToken cancellationToken, UserManager<User> userManager, HttpContext httpContext) =>
+        travelersGroup.MapDelete("travelers/{travelerId}", async (int travelerId, LsDbContext dbContext, CancellationToken cancellationToken, UserManager<User> userManager, HttpContext httpContext, JwtTokenService jwtTokenService) =>
         {
+            var claim = httpContext.User;
+            string accessToken = httpContext.GetTokenAsync("access_token").Result;
+            if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                return Results.Unauthorized();
             
             var traveler = await dbContext.Travelers.Include(traveler => traveler.User).FirstOrDefaultAsync(traveler => traveler.Id == travelerId, cancellationToken: cancellationToken);
             if (traveler == null)
                 return Results.NotFound(new { error = "Such traveler not found" });
-            
-            var claim = httpContext.User;
+
             if (!claim.IsInRole(UserRoles.Admin) && (!claim.IsInRole(UserRoles.Traveler) || claim.FindFirstValue(JwtRegisteredClaimNames.Sub) != traveler.UserId))
             {
                 return Results.Forbid();
@@ -156,6 +199,11 @@ public class TravelerEndpoint
     public static TravelerDto MakeTravelerDto (Traveler traveler, LsDbContext dbContext)
     {
         return new TravelerDto(traveler.Id, GetCompletedTripsCount(traveler, dbContext), traveler.cancelledCountTraveler, traveler.registrationDate, traveler.lastTripDate, traveler.travelerBio, traveler.User.UserName, traveler.User.Email);
+    }
+    
+    public static PassengerDto MakePassengerDto (Passenger passenger)
+    {
+        return new PassengerDto(passenger.Id, passenger.registrationStatus, passenger.startCity, passenger.endCity, passenger.startAdress, passenger.endAdress, passenger.comment, passenger.Traveler.Id, passenger.trip.Id);
     }
     
     public static int GetCompletedTripsCount(Traveler traveler, LsDbContext dbContext)
