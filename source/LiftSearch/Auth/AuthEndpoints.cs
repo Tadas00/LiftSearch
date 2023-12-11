@@ -163,12 +163,12 @@ public static class AuthEndpoints
         {
             string? refreshToken = httpContext.GetTokenAsync("refresh_token").Result;
             if(refreshToken == null)
-                return Results.UnprocessableEntity(); 
+                return Results.UnprocessableEntity("refresh token error"); 
 
             //TODO nepaduodu vistiek to refresh tokeno
             if (!jwtTokenService.TryParseRefreshToken(refreshToken, out var claims))
             {
-                return Results.UnprocessableEntity();
+                return Results.UnprocessableEntity("parse error");
             }
 
             var userId = claims.FindFirstValue(JwtRegisteredClaimNames.Sub);
