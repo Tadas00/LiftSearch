@@ -3,7 +3,6 @@ using System.Security.Claims;
 using LiftSearch.Data;
 using LiftSearch.Data.Entities;
 using LiftSearch.Dtos;
-using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Identity;
@@ -159,16 +158,12 @@ public static class AuthEndpoints
             });
         
         //logout
-        app.MapPost("api/logout", async (UserManager<User> userManager, JwtTokenService jwtTokenService, HttpContext httpContext) =>
+        app.MapPost("api/logout", async (UserManager<User> userManager, JwtTokenService jwtTokenService, LogoutUserDto logoutUserDto) =>
         {
-            string? refreshToken = httpContext.GetTokenAsync("refresh_token").Result;
-            if(refreshToken == null)
-                return Results.UnprocessableEntity("refresh token error"); 
-
             //TODO nepaduodu vistiek to refresh tokeno
-            if (!jwtTokenService.TryParseRefreshToken(refreshToken, out var claims))
+            if (!jwtTokenService.TryParseRefreshToken(logoutUserDto.RefreshToken, out var claims))
             {
-                return Results.UnprocessableEntity("parse error");
+                return Results.UnprocessableEntity();
             }
 
             var userId = claims.FindFirstValue(JwtRegisteredClaimNames.Sub);
