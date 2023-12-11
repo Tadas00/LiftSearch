@@ -134,9 +134,16 @@ public static class AuthEndpoints
         // accessToken
         app.MapPost("api/accessToken", async (UserManager<User> userManager, JwtTokenService jwtTokenService, RefreshAccessTokenDto refreshAccessTokenDto, LsDbContext dbContext) =>
             {
-                if (!jwtTokenService.TryParseRefreshToken(refreshAccessTokenDto.RefreshToken, out var claims))
+                if (jwtTokenService.TryParseRefreshToken(refreshAccessTokenDto.RefreshToken, out var claims, out bool expired) == false)
                 {
-                    return Results.UnprocessableEntity();
+                    if (expired)
+                    {
+                        return Results.Unauthorized();
+                    }
+                    else
+                    {
+                        return Results.UnprocessableEntity();
+                    }
                 }
 
                 var userId = claims.FindFirstValue(JwtRegisteredClaimNames.Sub);
@@ -158,15 +165,17 @@ public static class AuthEndpoints
             });
         
         //logout
-        app.MapPost("api/logout", async (UserManager<User> userManager, JwtTokenService jwtTokenService, LogoutUserDto logoutUserDto) =>
+        app.MapPost("api/logout", async (UserManager<User> userManager, JwtTokenService jwtTokenService, LogoutUserDto logoutUserDto, HttpContext httpContext) =>
         {
             //TODO nepaduodu vistiek to refresh tokeno
+            /*
             if (!jwtTokenService.TryParseRefreshToken(logoutUserDto.RefreshToken, out var claims))
             {
                 return Results.UnprocessableEntity();
-            }
+            }*/
 
-            var userId = claims.FindFirstValue(JwtRegisteredClaimNames.Sub);
+            var claim = httpContext.User;
+            var userId = claim.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
             var user = await userManager.FindByIdAsync(userId);
             if (user == null) return Results.UnprocessableEntity("Invalid token");

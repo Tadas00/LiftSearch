@@ -65,7 +65,7 @@ public class JwtTokenService
     }
 
 
-    public bool TryParseRefreshToken(string refreshToken, out ClaimsPrincipal? claims)
+    public bool TryParseRefreshToken(string refreshToken, out ClaimsPrincipal? claims, out bool expired)
     {
         claims = null;
 
@@ -82,10 +82,17 @@ public class JwtTokenService
             };
 
             claims = tokenHandler.ValidateToken(refreshToken, validationParameters, out _);
+            expired = false;
             return true;
+        }
+        catch (SecurityTokenExpiredException e)
+        {
+            expired = true;
+            return false;
         }
         catch
         {
+            expired = false;
             return false;
         }
     }
@@ -108,6 +115,10 @@ public class JwtTokenService
 
             tokenHandler.ValidateToken(AccessToken, validationParameters, out _);
             return true;
+        }
+        catch (SecurityTokenExpiredException e)
+        {
+            return false;
         }
         catch
         {
