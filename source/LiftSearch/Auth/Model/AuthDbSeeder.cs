@@ -1,5 +1,7 @@
-﻿using LiftSearch.Data.Entities;
+﻿using LiftSearch.Data;
+using LiftSearch.Data.Entities;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 
 namespace LiftSearch.Auth.Model;
 
@@ -40,8 +42,30 @@ public class AuthDbSeeder
         var existingAdminUser = await _userManager.FindByNameAsync(newAdminUser.UserName);
         if (existingAdminUser == null)
         {
-            var createAdminUserResult = await _userManager.CreateAsync(newAdminUser, "VSpassword11+");
-            if (createAdminUserResult.Succeeded) await _userManager.AddToRolesAsync(newAdminUser, UserRoles.All);
+            var createAdminUserResult = await _userManager.CreateAsync(newAdminUser, "Admin11+");
+            if (createAdminUserResult.Succeeded) await _userManager.AddToRoleAsync(newAdminUser, UserRoles.Admin);
+            /*
+            var traveler = new Traveler()
+            {
+                cancelledCountTraveler = 0,
+                registrationDate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc),
+                lastTripDate = null,
+                travelerBio = null,
+                UserId = newAdminUser.Id
+            };
+            _dbContext.Travelers.Add(traveler);
+            
+            var driver = new Driver()
+            {
+                cancelledCountDriver = 0,
+                registeredDriverDate = DateTime.SpecifyKind(DateTime.Now, DateTimeKind.Utc),
+                lastTripDate = null,
+                driverBio = null,
+                UserId = newAdminUser.Id
+            };
+
+            _dbContext.Drivers.Add(driver);
+            await _dbContext.SaveChangesAsync();*/
         }
     }
 }

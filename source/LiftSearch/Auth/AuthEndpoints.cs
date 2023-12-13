@@ -121,7 +121,7 @@ public static class AuthEndpoints
             //get ids
             var roles = await userManager.GetRolesAsync(user);
             
-            int travelerid = dbContext.Travelers.FirstOrDefaultAsync(t => t.UserId == user.Id).Result.Id;
+            int travelerid = roles.Contains(UserRoles.Traveler) ? dbContext.Travelers.FirstOrDefaultAsync(t => t.UserId == user.Id).Result.Id : -1;
             int driverid = roles.Contains(UserRoles.Driver) ? dbContext.Drivers.FirstOrDefaultAsync(d => d.UserId == user.Id).Result.Id : -1;
             
             var accessToken = jwtTokenService.CreateAccessToken(user.UserName, user.Id, roles, driverid, travelerid);
@@ -155,7 +155,7 @@ public static class AuthEndpoints
                 
                 var roles = await userManager.GetRolesAsync(user);
                 
-                int travelerid = dbContext.Travelers.FirstOrDefaultAsync(t => t.UserId == user.Id).Result.Id;
+                int travelerid = roles.Contains(UserRoles.Traveler) ? dbContext.Travelers.FirstOrDefaultAsync(t => t.UserId == user.Id).Result.Id : -1;
                 int driverid = roles.Contains(UserRoles.Driver) ? dbContext.Drivers.FirstOrDefaultAsync(d => d.UserId == user.Id).Result.Id : -1;
                 
                 var accessToken = jwtTokenService.CreateAccessToken(user.UserName, user.Id, roles, driverid, travelerid);
