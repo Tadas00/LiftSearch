@@ -97,7 +97,6 @@ public static class DriverEndpoints
             
             var user = await dbContext.Users.FirstOrDefaultAsync(user => user.Id == userId, cancellationToken: cancellationToken);
             if (user == null) return Results.NotFound(new { error = "Such user not found"});
-            if (user.forceRelogin) return Results.Forbid();
             
             var driverCheck = await dbContext.Drivers.FirstOrDefaultAsync(d => d.UserId == userId, cancellationToken: cancellationToken);
             if (driverCheck != null) return Results.UnprocessableEntity(new { error = "This user is already a driver"});
