@@ -35,14 +35,14 @@ public class AuthDbSeeder
     {
         var newAdminUser = new User
         {
-            UserName = "admin",
-            Email = "admin@admin.admin"
+            UserName = "admin2",
+            Email = "admin2@admin.com"
         };
 
         var existingAdminUser = await _userManager.FindByNameAsync(newAdminUser.UserName);
         if (existingAdminUser == null)
         {
-            var createAdminUserResult = await _userManager.CreateAsync(newAdminUser, "Admin11+");
+            var createAdminUserResult = await _userManager.CreateAsync(newAdminUser, "Admin22+");
             if (createAdminUserResult.Succeeded) await _userManager.AddToRoleAsync(newAdminUser, UserRoles.Admin);
             /*
             var traveler = new Traveler()
