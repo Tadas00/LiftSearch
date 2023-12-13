@@ -70,7 +70,7 @@ public static class AuthEndpoints
         {
             //user exists
             var user = await userManager.FindByNameAsync(registerUserDto.Username);
-            if (user != null) return Results.UnprocessableEntity("Username already taken");
+            if (user != null) return Results.UnprocessableEntity(new { error = "Username already taken"});
 
             //create user
             var newUser = new User()
@@ -108,11 +108,11 @@ public static class AuthEndpoints
         {
             //check user exists
             var user = await userManager.FindByNameAsync(loginUserDto.Username);
-            if (user == null) return Results.UnprocessableEntity("Username or password was incorrect");
+            if (user == null) return Results.UnprocessableEntity(new { error = "Username or password was incorrect"});
 
             //check password
             var isPasswordValid = await userManager.CheckPasswordAsync(user, loginUserDto.Password);
-            if (!isPasswordValid) Results.UnprocessableEntity("Username or password was incorrect");
+            if (!isPasswordValid) Results.UnprocessableEntity(new { error = "Username or password was incorrect"});
 
             //generate tokens
             user.forceRelogin = false;
@@ -142,16 +142,16 @@ public static class AuthEndpoints
                     }
                     else
                     {
-                        return Results.UnprocessableEntity();
+                        return Results.UnprocessableEntity(new { error = "Invalid token"});
                     }
                 }
 
                 var userId = claims.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
                 var user = await userManager.FindByIdAsync(userId);
-                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token"});
 
-                if (user.forceRelogin) return Results.UnprocessableEntity();
+                if (user.forceRelogin) return Results.UnprocessableEntity(new { error = "Invalid token"});
                 
                 var roles = await userManager.GetRolesAsync(user);
                 
@@ -178,7 +178,7 @@ public static class AuthEndpoints
             var userId = claim.FindFirstValue(JwtRegisteredClaimNames.Sub);
 
             var user = await userManager.FindByIdAsync(userId);
-            if (user == null) return Results.UnprocessableEntity("Invalid token");
+            if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token"});
 
             user.forceRelogin = true;
             await userManager.UpdateAsync(user);

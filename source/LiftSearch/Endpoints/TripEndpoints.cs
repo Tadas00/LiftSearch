@@ -74,7 +74,7 @@ public static class TripEndpoints
                 }
                 
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
                 if (user.forceRelogin) return Results.Forbid();
                 
                 var trip = new Trip
@@ -118,7 +118,7 @@ public static class TripEndpoints
             if (updateTripDto.startTime >= updateTripDto.endTime) return Results.UnprocessableEntity(new { error = "Start time cannot be later then end time" });
             
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-            if (user == null) return Results.UnprocessableEntity("Invalid token");
+            if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
             if (user.forceRelogin) return Results.Forbid();
             
             var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
@@ -158,7 +158,7 @@ public static class TripEndpoints
             }
             
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-            if (user == null) return Results.UnprocessableEntity("Invalid token");
+            if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
             if (user.forceRelogin) return Results.Forbid();
             
             var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>

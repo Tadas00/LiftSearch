@@ -25,7 +25,7 @@ public static class DriverEndpoints
             {
                 var claim = httpContext.User;
                 string accessToken = httpContext.GetTokenAsync("access_token").Result;
-                if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
+                if (jwtTokenService.TryParseAccessToken(accessToken) == false)
                     return Results.Unauthorized();
                 
                 return Results.Ok(
@@ -69,7 +69,7 @@ public static class DriverEndpoints
                 }
                 
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
                 if (user.forceRelogin) return Results.Forbid();
 
                 return Results.Ok((await dbContext.Passengers.Include(p => p.trip.Driver).Include(p => p.Traveler).Where(p => p.trip.DriverId == driverId).ToListAsync(cancellationToken)).Select(passenger => PassengerEndpoints.MakePassengerDto(passenger)));
@@ -134,7 +134,7 @@ public static class DriverEndpoints
                 }
                 
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
                 if (user.forceRelogin) return Results.Forbid();
 
                 driver.driverBio = updateDriverDto.driverBio ?? driver.driverBio;
@@ -163,7 +163,7 @@ public static class DriverEndpoints
             }
 
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-            if (user == null) return Results.UnprocessableEntity("Invalid token");
+            if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
             if (user.forceRelogin) return Results.Forbid();
             
             var countActiveTrips = dbContext.Trips.Include(t => t.Driver).Count(t => t.DriverId == driverId && t.tripStatus == TripStatus.Active);

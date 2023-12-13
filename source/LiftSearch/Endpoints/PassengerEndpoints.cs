@@ -35,7 +35,7 @@ public static class PassengerEndpoints
                 }
                 
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
                 if (user.forceRelogin) return Results.Forbid();
                 
                 var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
@@ -68,7 +68,7 @@ public static class PassengerEndpoints
                 }
                 
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
                 if (user.forceRelogin) return Results.Forbid();
                 
                 var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
@@ -97,7 +97,7 @@ public static class PassengerEndpoints
                 }
                 
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-                if (user == null) return Results.UnprocessableEntity("Invalid token");
+                if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
                 if (user.forceRelogin) return Results.Forbid();
                 
                 var userId = claim.FindFirstValue(JwtRegisteredClaimNames.Sub);
@@ -144,7 +144,7 @@ public static class PassengerEndpoints
                 return Results.Unauthorized();
             
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
-            if (user == null) return Results.UnprocessableEntity("Invalid token");
+            if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
             if (user.forceRelogin) return Results.Forbid();
             
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
