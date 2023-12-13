@@ -83,9 +83,13 @@ public static class DriverEndpoints
             if (jwtTokenService.TryParseAccessToken(accessToken) == false) 
                 return Results.Unauthorized();
             string? userId;
-            
-            if (claim.IsInRole(UserRoles.Admin) && createDriverDto.userId != null)
-                userId = createDriverDto.userId;
+
+            if (claim.IsInRole(UserRoles.Admin) && createDriverDto.travelerId != null)
+            {
+                var traveler = await dbContext.Travelers.FirstOrDefaultAsync(t => t.Id == createDriverDto.travelerId, cancellationToken: cancellationToken);
+                if (traveler != null) return Results.UnprocessableEntity(new { error = "Such traveler does not exist"});
+                userId = traveler.UserId;
+            }
             else if (claim.IsInRole(UserRoles.Traveler) && !claim.IsInRole(UserRoles.Driver))
                 userId = claim.FindFirstValue(JwtRegisteredClaimNames.Sub);
             else

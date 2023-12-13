@@ -5,7 +5,7 @@ namespace LiftSearch.Dtos;
 
 
 public record DriverDto(int Id, int tripsCountDriver, int cancelledCountDriver, DateTime registeredDriverDate, DateTime? lastTripDate, string? driverBio, string name, string email);
-public record CreateDriverDto(string? userId, string? driverBio);
+public record CreateDriverDto(int? travelerId, string? driverBio);
 public record UpdateDriverDto(string? driverBio);
 
 public class CreateDriverDtoValidator : AbstractValidator<CreateDriverDto>
