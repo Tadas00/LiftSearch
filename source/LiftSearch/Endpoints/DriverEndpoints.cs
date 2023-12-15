@@ -87,7 +87,7 @@ public static class DriverEndpoints
             if (claim.IsInRole(UserRoles.Admin) && createDriverDto.travelerId != null)
             {
                 var traveler = await dbContext.Travelers.FirstOrDefaultAsync(t => t.Id == createDriverDto.travelerId, cancellationToken: cancellationToken);
-                if (traveler == null) return Results.UnprocessableEntity(new { error = "Such traveler does not exist"});
+                if (traveler == null) return Results.NotFound(new { error = "Such traveler does not exist"});
                 userId = traveler.UserId;
             }
             else if (claim.IsInRole(UserRoles.Traveler) && !claim.IsInRole(UserRoles.Driver))
@@ -138,7 +138,7 @@ public static class DriverEndpoints
                 
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
                 if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
-                if (user.forceRelogin) return Results.Forbid();
+                if (user.forceRelogin) return Results.Unauthorized();
 
                 driver.driverBio = updateDriverDto.driverBio ?? driver.driverBio;
 
@@ -167,7 +167,7 @@ public static class DriverEndpoints
 
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
             if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
-            if (user.forceRelogin) return Results.Forbid();
+            if (user.forceRelogin) return Results.Unauthorized();
             
             var countActiveTrips = dbContext.Trips.Include(t => t.Driver).Count(t => t.DriverId == driverId && t.tripStatus == TripStatus.Active);
             if (countActiveTrips != 0)

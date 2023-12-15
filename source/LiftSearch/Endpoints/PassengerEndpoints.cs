@@ -36,7 +36,7 @@ public static class PassengerEndpoints
                 
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
                 if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
-                if (user.forceRelogin) return Results.Forbid();
+                if (user.forceRelogin) return Results.Unauthorized();
                 
                 var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                     trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
@@ -69,7 +69,7 @@ public static class PassengerEndpoints
                 
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
                 if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
-                if (user.forceRelogin) return Results.Forbid();
+                if (user.forceRelogin) return Results.Unauthorized();
                 
                 var trip = await dbContext.Trips.FirstOrDefaultAsync(trip =>
                     trip.Id == tripId && trip.Driver.Id == driverId, cancellationToken: cancellationToken);
@@ -98,7 +98,7 @@ public static class PassengerEndpoints
                 
                 var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
                 if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
-                if (user.forceRelogin) return Results.Forbid();
+                if (user.forceRelogin) return Results.Unauthorized();
                 
                 var userId = claim.FindFirstValue(JwtRegisteredClaimNames.Sub);
                 
@@ -145,7 +145,7 @@ public static class PassengerEndpoints
             
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
             if (user == null) return Results.UnprocessableEntity(new { error = "Invalid token" });
-            if (user.forceRelogin) return Results.Forbid();
+            if (user.forceRelogin) return Results.Unauthorized();
             
             var driver = await dbContext.Drivers.FirstOrDefaultAsync(driver => driver.Id == driverId, cancellationToken: cancellationToken);
             if (driver == null) return Results.NotFound(new { error = "Such driver not found" });
@@ -207,7 +207,7 @@ public static class PassengerEndpoints
             
             var user = await userManager.FindByIdAsync(claim.FindFirstValue(JwtRegisteredClaimNames.Sub));
             if (user == null) return Results.UnprocessableEntity("Invalid token");
-            if (user.forceRelogin) return Results.Forbid();
+            if (user.forceRelogin) return Results.Unauthorized();
 
             incrementCancelledTrips(passenger.Traveler, dbContext);
             
